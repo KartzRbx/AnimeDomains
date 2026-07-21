@@ -1,0 +1,105 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Debi",
+  "scopeName": "source.debi",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#fields" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.debi",
+          "begin": "--\\[\\[",
+          "end": "\\]\\]"
+        },
+        {
+          "name": "comment.line.double-dash.debi",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.debi",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.debi",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.debi",
+          "match": "\\b(opt|event|type|struct|funct)\\b"
+        },
+        {
+          "name": "keyword.other.debi",
+          "match": "\\b(from|call|data)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.debi",
+          "match": "\\b(u8|u16|u32|i8|i16|i32|f32|f64|bool|string|vector)\\b"
+        },
+        {
+          "name": "entity.name.type.debi",
+          "match": "\\b([A-Z][A-Za-z0-9_]*)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.debi",
+          "match": "\\b(Server|Client|Reliable|Unreliable|ManyAsync|ManySync|SingleAsync|SingleSync|true|false)\\b"
+        }
+      ]
+    },
+    "fields": {
+      "patterns": [
+        {
+          "name": "variable.other.property.debi",
+          "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(?=:)"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.debi",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.debi",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.type.debi",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.separator.debi",
+          "match": "[,]"
+        },
+        {
+          "name": "punctuation.bracket.debi",
+          "match": "[{}\\[\\]()]"
+        }
+      ]
+    }
+  }
+}

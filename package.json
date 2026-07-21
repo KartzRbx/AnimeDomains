@@ -1,0 +1,25 @@
+{
+  "name": "genrojotree",
+  "version": "1.0.0",
+  "main": "index.js",
+ "scripts": {
+  "build:rojo": "node tools/genRojoTree.js",
+  "build:debi": "node tools/debi/cli.js --all",
+  "build:interfaces": "node tools/genInterfaceTypes.js --once",
+  "install:deps": "wally install",
+  "install:interface-plugin": "node tools/installInterfacePlugin.js",
+  "install:debi-ext": "node tools/installDebiExtension.js",
+  "watch:rojo": "chokidar \"src/**/*\" -c \"npm run build:rojo\"",
+  "watch:debi": "chokidar \"src/Networker/**/*.debi\" -c \"npm run build:debi\"",
+  "watch:interfaces": "node tools/genInterfaceTypes.js",
+  "dev": "concurrently \"npm run watch:rojo\" \"npm run watch:debi\" \"npm run watch:interfaces\" \"rojo serve\""
+},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^10.0.3"
+  }
+}

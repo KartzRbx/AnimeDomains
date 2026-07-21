@@ -1,0 +1,231 @@
+{
+  "name": "genrojotree",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedFirst": {
+      "$ignoreUnknownInstances": true
+    },
+    "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
+      "Shareds": {
+        "$className": "Folder",
+        "Services": {
+          "$className": "Folder",
+          "CardsService": {
+            "$className": "Folder",
+            "CardsServiceClient": {
+              "$path": "src/Services/CardsService/CardsServiceClient.luau"
+            },
+            "CardsServiceType": {
+              "$path": "src/Services/CardsService/CardsServiceType.luau"
+            },
+            "CardsServiceUtils": {
+              "$path": "src/Services/CardsService/CardsServiceUtils.luau"
+            },
+            "Interface": {
+              "$className": "Folder",
+              "Components": {
+                "$className": "Folder",
+                "CardLayout": {
+                  "$path": "src/Services/CardsService/Interface/Components/CardLayout.luau"
+                }
+              },
+              "Lib": {
+                "$className": "Folder",
+                "PaletteLib": {
+                  "$path": "src/Services/CardsService/Interface/Lib/PaletteLib.luau"
+                },
+                "ShineLib": {
+                  "$path": "src/Services/CardsService/Interface/Lib/ShineLib.luau"
+                }
+              }
+            },
+            "PreviewModelManager": {
+              "$path": "src/Services/CardsService/PreviewModelManager.luau"
+            }
+          },
+          "EnergyService": {
+            "$className": "Folder",
+            "EnergyConstants": {
+              "$path": "src/Services/EnergyService/EnergyConstants.luau"
+            },
+            "EnergyEnums": {
+              "$path": "src/Services/EnergyService/EnergyEnums.luau"
+            },
+            "EnergyServiceClient": {
+              "$path": "src/Services/EnergyService/EnergyServiceClient.luau"
+            },
+            "EnergyServiceUtils": {
+              "$path": "src/Services/EnergyService/EnergyServiceUtils.luau"
+            },
+            "EnergyTypes": {
+              "$path": "src/Services/EnergyService/EnergyTypes.luau"
+            },
+            "Interface": {
+              "$className": "Folder",
+              "Lib": {
+                "$className": "Folder",
+                "TweenBar": {
+                  "$path": "src/Services/EnergyService/Interface/Lib/TweenBar.luau"
+                }
+              }
+            }
+          },
+          "GameplayService": {
+            "$className": "Folder",
+            "GameplayBuildMap": {
+              "$path": "src/Services/GameplayService/GameplayBuildMap.luau"
+            },
+            "GameplayServiceClient": {
+              "$path": "src/Services/GameplayService/GameplayServiceClient.luau"
+            },
+            "GameplayTypes": {
+              "$path": "src/Services/GameplayService/GameplayTypes.luau"
+            }
+          }
+        },
+        "Constants": {
+          "$className": "Folder",
+          "$path": "src/Constants"
+        },
+        "Classes": {
+          "$className": "Folder",
+          "$path": "src/Classes"
+        },
+        "Modules": {
+          "$className": "Folder",
+          "$path": "src/Modules"
+        },
+        "Networker": {
+          "$className": "Folder",
+          "Net": {
+            "$path": "src/Networker/Net.luau"
+          },
+          "Game": {
+            "$className": "Folder",
+            "Client": {
+              "$path": "src/Networker/Game/Client.luau"
+            },
+            "Server": {
+              "$path": "src/Networker/Game/Server.luau"
+            }
+          },
+          "Secondary": {
+            "$className": "Folder",
+            "Client": {
+              "$path": "src/Networker/Secondary/Client.luau"
+            },
+            "Server": {
+              "$path": "src/Networker/Secondary/Server.luau"
+            }
+          },
+          "Validations": {
+            "$className": "Folder",
+            "Client": {
+              "$path": "src/Networker/Validations/Client.luau"
+            },
+            "Server": {
+              "$path": "src/Networker/Validations/Server.luau"
+            }
+          }
+        },
+        "Workers": {
+          "$className": "Folder",
+          "$path": "src/Workers"
+        },
+        "Utils": {
+          "$className": "Folder",
+          "$path": "src/Utils"
+        }
+      },
+      "Packages": {
+        "$className": "Folder",
+        "$path": "Packages"
+      }
+    },
+    "ServerScriptService": {
+      "Source": {
+        "$className": "Folder",
+        "Boot": {
+          "$className": "Folder",
+          "Cmdr": {
+            "$className": "Folder",
+            "Cmdr": {
+              "$path": "src/Boot/Cmdr/Cmdr.server.luau"
+            }
+          },
+          "Data": {
+            "$className": "Folder",
+            "DataBoot": {
+              "$path": "src/Boot/Data/DataBoot.server.luau"
+            }
+          },
+          "Game": {
+            "$className": "Folder",
+            "Server": {
+              "$path": "src/Boot/Game/Server.server.luau"
+            }
+          }
+        },
+        "Handlers": {
+          "$className": "Folder",
+          "Cmdr": {
+            "$className": "Folder",
+            "Commands": {
+              "$className": "Folder",
+              "StartMatch": {
+                "$path": "src/Handlers/Cmdr/Commands/StartMatch.luau"
+              },
+              "StartMatchServer": {
+                "$path": "src/Handlers/Cmdr/Commands/StartMatchServer.luau"
+              }
+            }
+          }
+        },
+        "Configurations": {
+          "$className": "Folder"
+        },
+        "Services": {
+          "$className": "Folder",
+          "CardsService": {
+            "$path": "src/Services/CardsService/CardsServiceServer.luau"
+          },
+          "EnergyService": {
+            "$path": "src/Services/EnergyService/EnergyServiceServer.luau"
+          },
+          "GameplayService": {
+            "$path": "src/Services/GameplayService/GameplayServiceServer.luau"
+          }
+        }
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Boot": {
+          "$className": "Folder",
+          "Cmdr": {
+            "$className": "Folder",
+            "Cmdr": {
+              "$path": "src/Boot/Cmdr/Cmdr.client.luau"
+            }
+          },
+          "Data": {
+            "$className": "Folder",
+            "DataBoot": {
+              "$path": "src/Boot/Data/DataBoot.client.luau"
+            }
+          },
+          "Game": {
+            "$className": "Folder",
+            "Client": {
+              "$path": "src/Boot/Game/Client.client.luau"
+            }
+          }
+        },
+        "Controllers": {
+          "$className": "Folder"
+        }
+      }
+    }
+  }
+}

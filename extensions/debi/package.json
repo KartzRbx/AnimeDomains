@@ -1,0 +1,57 @@
+{
+  "name": "debi",
+  "displayName": "Debi",
+  "description": "Syntax highlighting, IntelliSense and diagnostics for Debi (.debi)",
+  "version": "0.2.1",
+  "publisher": "animedomains",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Programming Languages", "Linters"],
+  "activationEvents": [
+    "onLanguage:debi"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configurationDefaults": {
+      "[debi]": {
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": false,
+          "strings": true
+        },
+        "editor.suggestOnTriggerCharacters": true,
+        "editor.acceptSuggestionOnCommitCharacter": true,
+        "editor.wordBasedSuggestions": "off",
+        "editor.snippetSuggestions": "top"
+      }
+    },
+    "languages": [
+      {
+        "id": "debi",
+        "aliases": ["Debi", "debi"],
+        "extensions": [".debi"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "debi",
+        "scopeName": "source.debi",
+        "path": "./syntaxes/debi.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "debi",
+        "path": "./snippets/debi.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "debi.revalidate",
+        "title": "Debi: Revalidate File"
+      }
+    ]
+  }
+}

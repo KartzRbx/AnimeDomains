@@ -1,0 +1,17 @@
+{
+	"stylua.targetReleaseVersion": "latest",
+	"files.associations": {
+		"*.debi": "debi"
+	},
+	"workbench.editor.customLabels.patterns": {
+		"**/init.lua": "${dirname} (${filename}.${extname})",
+		"**/init.luau": "${dirname} (${filename}.${extname})",
+		"**/Client.luau": "${dirname}${filename}.${extname}",
+		"**/Server.luau": "${dirname}${filename}.${extname}",
+		"**/Utils.luau": "${dirname}${filename}.${extname}"
+	},
+	"workbench.colorCustomizations": {
+		"minimap.background": "#00000000",
+		"scrollbar.shadow": "#00000000"
+	}
+}

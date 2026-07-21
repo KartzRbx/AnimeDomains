@@ -1,0 +1,22 @@
+[package]
+name = "user/animedomains"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+dataservicev2 = "kartzrbx/dataservicev2@2.3.3"
+janitor = "1foreverhd/janitor@1.18.15"
+cmdr = "lipetos/cmdr@1.12.2"
+spring = "nightcycle/spring@1.0.0"
+display = "nightcycle/display@0.2.8"
+module3d = "kumarion/module3d@0.0.2"
+stickybillboard = "kartzrbx/stickybillboard@1.2.0"
+ezvisualz = "arxkdev/ezvisualz@1.2.0"
+formatnumber = "kumarion/formatnumber@0.0.1"
+vfx-util = "lucaschaibub/vfx-util@1.0.0"
+topbarplus = "1foreverhd/topbarplus@3.4.0"
+simplepath = "tabby0x/simplepath@2.2.6"
+jecs = "ukendio/jecs@0.11.0"
+signal = "sleitnick/signal@2.0.3"
+jabby = "alicesaidhi/jabby@0.6.1"

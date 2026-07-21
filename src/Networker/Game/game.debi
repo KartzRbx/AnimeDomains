@@ -1,0 +1,118 @@
+-- Debi Game channel (main gameplay networking)
+
+opt channel = "Game"
+opt server_output = "src/Networker/Game/Server.luau"
+opt client_output = "src/Networker/Game/Client.luau"
+
+type Vec3Data = struct {
+	X: f32,
+	Y: f32,
+	Z: f32,
+}
+
+
+
+type TowerInfo = struct {
+	Id: string,
+	Level: u16,
+}
+
+type TeamTowers = struct {
+	Left: TowerInfo,
+	Main: TowerInfo,
+	Right: TowerInfo,
+}
+
+type TeamInner = struct {
+	Towers: TeamTowers,
+	Deck: string[],
+}
+
+type TeamData = struct {
+	Owner: string,
+	Data: TeamInner,
+}
+
+type EntityState = struct {
+	One: TeamData,
+	Two: TeamData,
+}
+
+type PlaceUnitRequest = struct {
+	CardId: string,
+	Position: Vec3Data,
+}
+
+type UnitState = struct {
+	NetId: u32,
+	CardId: string,
+	Team: string,
+	Position: Vec3Data,
+	Health: f32,
+	MaxHealth: f32,
+	Moving: bool,
+}
+
+type UnitUpdate = struct {
+	NetId: u32,
+	Position: Vec3Data,
+	Health: f32,
+	Moving: bool,
+}
+
+type MatchEnergy = struct {
+	Current: f32,
+	Max: f32,
+}
+
+event FetchPlayerEnergy = {
+	from: Server,
+	type: Unreliable,
+	call: SingleAsync,
+	data: (energy: f32),
+}
+
+event PutCardInPlace = {
+	from: Client,
+	type: Reliable,
+	call: SingleAsync,
+	data: (payload: PlaceUnitRequest),
+}
+
+
+event SetEntityState = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	data: (state: EntityState),
+}
+
+
+event SetEnergy = {
+	from: Server,
+	type: Unreliable,
+	call: SingleAsync,
+	data: (energy: MatchEnergy),
+}
+
+
+event AddUnit = {
+	from: Server,
+	type: Reliable,
+	call: ManyAsync,
+	data: (unit: UnitState),
+}
+
+event UpdateUnit = {
+	from: Server,
+	type: Unreliable,
+	call: ManyAsync,
+	data: (unit: UnitUpdate),
+}
+
+event RemoveUnit = {
+	from: Server,
+	type: Reliable,
+	call: ManyAsync,
+	data: (netId: u32),
+}

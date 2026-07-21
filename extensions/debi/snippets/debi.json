@@ -1,0 +1,32 @@
+{
+  "Debi Event": {
+    "prefix": "event",
+    "body": [
+      "event ${1:EventName} = {",
+      "\tfrom: ${2|Server,Client|},",
+      "\ttype: ${3|Reliable,Unreliable|},",
+      "\tcall: ${4|SingleAsync,ManyAsync,SingleSync,ManySync|},",
+      "\tdata: (${5:field}: ${6:f32}),",
+      "}"
+    ],
+    "description": "Debi event definition"
+  },
+  "Debi Struct Type": {
+    "prefix": "type",
+    "body": [
+      "type ${1:TypeName} = struct {",
+      "\t${2:Field}: ${3:f32},",
+      "}"
+    ],
+    "description": "Debi struct type alias"
+  },
+  "Debi Opt": {
+    "prefix": "opt",
+    "body": [
+      "opt channel = \"${1:Game}\"",
+      "opt server_output = \"src/Networker/${1:Game}/Server.luau\"",
+      "opt client_output = \"src/Networker/${1:Game}/Client.luau\""
+    ],
+    "description": "Debi channel outputs"
+  }
+}
