@@ -3,11 +3,11 @@
 local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Janitor = require(ReplicatedStorage.Packages.janitor)
+local PlayerUtils = require(ReplicatedStorage.Shareds.Utils.PlayerUtils)
 
 export type HudRegion = "Left" | "Right" | "Top" | "Bottom" | "HUD"
 
@@ -201,6 +201,15 @@ local function RegisterChildren(Root: Instance, Prefix: string)
 	end
 end
 
+function UIModule:GetMainGui(): ScreenGui
+	if MainGui and MainGui.Parent then
+		return MainGui
+	end
+
+	MainGui = PlayerUtils.waitMain()
+	return MainGui
+end
+
 function UIModule:Init()
 	if Initialized then
 		return
@@ -208,31 +217,38 @@ function UIModule:Init()
 	Initialized = true
 	ModuleJanitor = Janitor.new()
 
-	local Player = Players.LocalPlayer
-	local PlayerGui = Player:WaitForChild("PlayerGui") :: PlayerGui
-	MainGui = PlayerGui:WaitForChild("Main") :: ScreenGui
+	local ResolvedMain = self:GetMainGui()
 
-	local Hud = MainGui:FindFirstChild("HUD")
+	local Hud = ResolvedMain:FindFirstChild("HUD")
 	if Hud then
 		RegisterChildren(Hud, "HUD")
 	end
 
-	local Container = MainGui:FindFirstChild("Container")
+	local Container = ResolvedMain:FindFirstChild("Container")
 	if Container then
 		RegisterChildren(Container, "Container")
 	end
 
-	for _, Descendant in MainGui:GetDescendants() do
+	for _, Descendant in ResolvedMain:GetDescendants() do
 		if Descendant:IsA("GuiButton") and not Descendant:GetAttribute("NoGuiFx") then
 			self:BindButton(Descendant)
 		end
 	end
 
-	ModuleJanitor:add(MainGui.DescendantAdded:Connect(function(Descendant: Instance)
+	ModuleJanitor:add(ResolvedMain.DescendantAdded:Connect(function(Descendant: Instance)
 		if Descendant:IsA("GuiButton") and not Descendant:GetAttribute("NoGuiFx") then
 			self:BindButton(Descendant)
 		end
 	end))
+
+	self:BindGlobalPointerClicks({
+		BubbleCount = 4,
+		MinSpread = 16,
+		MaxSpread = 42,
+		MinSize = 4,
+		MaxSize = 8,
+		Duration = 0.35,
+	})
 end
 
 function UIModule:RegisterInterface(Name: string, Frame: GuiObject, Region: HudRegion?)
@@ -421,20 +437,5 @@ UIModule.bindButton = UIModule.BindButton
 UIModule.bindGlobalPointerClicks = UIModule.BindGlobalPointerClicks
 
 export type UIModule = typeof(UIModule)
-
--- Auto-start on client at require
-if RunService:IsClient() then
-	UIModule:BindGlobalPointerClicks({
-		BubbleCount = 4,
-		MinSpread = 16,
-		MaxSpread = 42,
-		MinSize = 4,
-		MaxSize = 8,
-		Duration = 0.35,
-	})
-	task.spawn(function()
-		UIModule:Init()
-	end)
-end
 
 return UIModule

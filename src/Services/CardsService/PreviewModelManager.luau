@@ -11,14 +11,21 @@ const Workspace = game:GetService("Workspace")
 const CardsServiceType = require(script.Parent.CardsServiceType)
 const CardsServiceUtils = require(script.Parent.CardsServiceUtils)
 const Janitor = require(ReplicatedStorage.Packages.janitor)
+const Model = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Model)
 const CardLayout = require(ReplicatedStorage.Shareds.Services.CardsService.Interface.Components.CardLayout)
+const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const AssetsUtils = require(ReplicatedStorage.Shareds.Utils.AssetsUtils)
+const CollisionGroupUtil = require(ReplicatedStorage.Shareds.Utils.CollisionGroupUtil)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
 
 const SHOW_TRANSPARENCY = 0
 const HIDE_TRANSPARENCY = 1
 const RAY_DISTANCE = 500
 const OVERLAY_TWEEN_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+const WALK_ANIMATION_NAME = 'Walk'
+const WALK_ANIMATION_TRACK = AssetsUtils.getAnimation(WALK_ANIMATION_NAME) :: Animation
+
 
 const PreviewModelManager = {}
 
@@ -92,11 +99,13 @@ const function stripPreviewCollision(model: Model)
 			descendant:Destroy()
 		end
 	end
+
+	CollisionGroupUtil.AssignEntity(model)
 end
 
 const function makePreviewModel(handle: CardLayout.CardHandle): Model
 	local data = handle.Data
-	local model = AssetsUtils.getEntityUnitModel(data.Id):Clone()
+	local model = AssetsUtils.getEntityUnitModel(data.ModelID):Clone()
 	model.Name = `Preview_{data.Id}`
 
 	stripPreviewCollision(model)
@@ -257,6 +266,10 @@ function PreviewModelManager.onBindRaycast(
 	local enemyTowerPos = getEnemyMainTowerPosition(teamName)
 	local lastCanPlace = false
 	local lastPosition: Vector3? = nil
+	local Track: AnimationTrack? = nil
+
+
+	
 
 	session:add(function()
 		hideEnemyOverlay(overlay)
@@ -298,6 +311,13 @@ function PreviewModelManager.onBindRaycast(
 
 		lastPosition = result.Position
 		movePreview(previewModel, result.Position, enemyTowerPos)
+		const animator = AnimationUtil.PrepareModel(previewModel)
+		if animator and not Track then
+			Track = animator:LoadAnimation(WALK_ANIMATION_TRACK)
+			if Track then
+				Track:Play(0.1)
+			end
+		end
 
 		local canPlace = PlacementZoneUtils.CanPlace(teamName, result.Position, "Unit")
 		lastCanPlace = canPlace
@@ -314,6 +334,10 @@ function PreviewModelManager.onBindRaycast(
 	return {
 		Cancel = function()
 			session:destroy()
+			if Track then
+				Track:Stop()
+				Track:Destroy()
+			end
 		end,
 		CanPlace = function()
 			return lastCanPlace

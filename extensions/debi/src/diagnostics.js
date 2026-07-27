@@ -93,6 +93,7 @@ function createDiagnosticsController(context) {
 				"bool",
 				"string",
 				"vector",
+				"Player",
 				...Object.keys(ast.types || {}),
 			]);
 

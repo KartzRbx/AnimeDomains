@@ -1,5 +1,11 @@
 /**
- * Debi codegen — gera Server.luau / Client.luau
+ * Debi codegen — generates Server.luau / Client.luau
+ *
+ * Binding rules (security / style):
+ * - `const` for immutable bindings: services, requires, numeric limits, helpers, Debi table
+ * - `local` only for mutable state (queues, writers, remotes, callbacks, counters)
+ * - Prefer `const function` for stable helpers (serialize/dispatch/flush)
+ * - No `@native` by default — only add after measured hot-path need
  */
 
 const path = require("path");
@@ -27,7 +33,6 @@ function genStructHelpers(typeMap) {
   for (const [name, def] of Object.entries(typeMap)) {
     if (def.kind !== "struct") continue;
 
-    // Luau export type
     lines.push(`export type ${name} = {`);
     for (const field of def.fields) {
       lines.push(`\t${field.name}: ${luauType(field.type, typeMap)},`);
@@ -35,7 +40,7 @@ function genStructHelpers(typeMap) {
     lines.push(`}`);
     lines.push(``);
 
-    lines.push(`local function write${name}(w: BufferWriter.BufferWriter, value: ${name})`);
+    lines.push(`const function write${name}(w: BufferWriter.BufferWriter, value: ${name})`);
     for (const field of def.fields) {
       const expr = writeExpr("w", `value.${field.name}`, field.type, typeMap);
       for (const line of expr.split("\n")) {
@@ -45,8 +50,8 @@ function genStructHelpers(typeMap) {
     lines.push(`end`);
     lines.push(``);
 
-    lines.push(`local function read${name}(r: BufferReader.BufferReader): ${name}`);
-    lines.push(`\tlocal value: ${name} = {} :: any`);
+    lines.push(`const function read${name}(r: BufferReader.BufferReader): ${name}`);
+    lines.push(`\tconst value: ${name} = {} :: any`);
     for (const field of def.fields) {
       if (field.type.kind === "array") {
         lines.push(readArrayBlock("r", `__${field.name}`, field.type, typeMap, "\t"));
@@ -78,7 +83,7 @@ function writeEventPayload(event, typeMap, indent = "\t") {
     if (field.type.kind === "array") {
       lines.push(
         `${indent}do`,
-        `${indent}\tlocal __arr = ${field.name}`,
+        `${indent}\tconst __arr = ${field.name}`,
         `${indent}\tw:writeu16(#__arr)`,
         `${indent}\tfor __, __item in __arr do`
       );
@@ -106,7 +111,7 @@ function readEventPayload(event, typeMap, indent = "\t") {
       lines.push(readArrayBlock("r", field.name, field.type, typeMap, indent));
     } else {
       const rd = readExpr("r", field.type, typeMap);
-      lines.push(`${indent}local ${field.name} = ${rd}`);
+      lines.push(`${indent}const ${field.name} = ${rd}`);
     }
   }
   return { lines: lines.join("\n"), names };
@@ -123,26 +128,33 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(``);
   lines.push(`const RunService = game:GetService("RunService")`);
   lines.push(`const ReplicatedStorage = game:GetService("ReplicatedStorage")`);
+  lines.push(`const Players = game:GetService("Players")`);
   lines.push(``);
   lines.push(`const BufferWriter = require(${runtimeRequirePath}.BufferWriter)`);
   lines.push(`const BufferReader = require(${runtimeRequirePath}.BufferReader)`);
   lines.push(`const Remotes = require(${runtimeRequirePath}.Remotes)`);
   lines.push(``);
   lines.push(`const CHANNEL = "${channel}"`);
+  lines.push(`const MAX_RELIABLE_BYTES = 8192`);
+  lines.push(`const MAX_UNRELIABLE_BYTES = 900`);
+  lines.push(`const MAX_EVENTS_PER_PACKET = 64`);
+  lines.push(`const RATE_LIMIT_WINDOW = 1`);
+  lines.push(`const RATE_LIMIT_MAX = 90`);
   lines.push(``);
   lines.push(`assert(RunService:IsServer(), "[Debi/${channel}] Server.luau can only be required on the server")`);
   lines.push(``);
   lines.push(genStructHelpers(typeMap));
 
+  // Mutable runtime state
   lines.push(`local reliableWriter = BufferWriter.new()`);
   lines.push(`local unreliableWriter = BufferWriter.new()`);
   lines.push(`local reliableQueues: { [Player]: BufferWriter.BufferWriter } = {}`);
   lines.push(`local unreliableQueues: { [Player]: BufferWriter.BufferWriter } = {}`);
   lines.push(`local remotes: Remotes.DebiRemotes? = nil`);
   lines.push(`local flushing = false`);
+  lines.push(`local packetCounts: { [Player]: { count: number, resetAt: number } } = {}`);
   lines.push(``);
 
-  // callbacks for client->server events
   for (const event of events) {
     if (event.from !== "Client") continue;
     const args = eventArgsLuau(event, typeMap, true);
@@ -154,7 +166,7 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   }
   lines.push(``);
 
-  lines.push(`local function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Player): BufferWriter.BufferWriter`);
+  lines.push(`const function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Player): BufferWriter.BufferWriter`);
   lines.push(`\tlocal q = map[player]`);
   lines.push(`\tif not q then`);
   lines.push(`\t\tq = BufferWriter.new()`);
@@ -164,8 +176,8 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local function flushPlayer(player: Player, map: { [Player]: BufferWriter.BufferWriter }, remote: RemoteEvent | UnreliableRemoteEvent)`);
-  lines.push(`\tlocal q = map[player]`);
+  lines.push(`const function flushPlayer(player: Player, map: { [Player]: BufferWriter.BufferWriter }, remote: RemoteEvent | UnreliableRemoteEvent)`);
+  lines.push(`\tconst q = map[player]`);
   lines.push(`\tif not q or q:len() == 0 then`);
   lines.push(`\t\treturn`);
   lines.push(`\tend`);
@@ -174,8 +186,8 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local function flushAll()`);
-  lines.push(`\tlocal r = remotes`);
+  lines.push(`const function flushAll()`);
+  lines.push(`\tconst r = remotes`);
   lines.push(`\tif not r then`);
   lines.push(`\t\treturn`);
   lines.push(`\tend`);
@@ -188,17 +200,9 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  // dispatch incoming from client (only Client→Server event ids)
-  lines.push(`local MAX_RELIABLE_BYTES = 8192`);
-  lines.push(`local MAX_UNRELIABLE_BYTES = 900`);
-  lines.push(`local MAX_EVENTS_PER_PACKET = 64`);
-  lines.push(`local RATE_LIMIT_WINDOW = 1`);
-  lines.push(`local RATE_LIMIT_MAX = 90`);
-  lines.push(`local packetCounts: { [Player]: { count: number, resetAt: number } } = {}`);
-  lines.push(``);
-  lines.push(`local function allowPacket(player: Player): boolean`);
-  lines.push(`\tlocal now = os.clock()`);
-  lines.push(`\tlocal entry = packetCounts[player]`);
+  lines.push(`const function allowPacket(player: Player): boolean`);
+  lines.push(`\tconst now = os.clock()`);
+  lines.push(`\tconst entry = packetCounts[player]`);
   lines.push(`\tif not entry or now >= entry.resetAt then`);
   lines.push(`\t\tpacketCounts[player] = { count = 1, resetAt = now + RATE_LIMIT_WINDOW }`);
   lines.push(`\t\treturn true`);
@@ -211,16 +215,16 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local function dispatchClient(player: Player, buf: buffer)`);
+  lines.push(`const function dispatchClient(player: Player, buf: buffer)`);
   lines.push(`\tpcall(function()`);
-  lines.push(`\t\tlocal r = BufferReader.new(buf)`);
+  lines.push(`\t\tconst r = BufferReader.new(buf)`);
   lines.push(`\t\tlocal eventsRead = 0`);
   lines.push(`\t\twhile r:hasMore() do`);
   lines.push(`\t\t\teventsRead += 1`);
   lines.push(`\t\t\tif eventsRead > MAX_EVENTS_PER_PACKET then`);
   lines.push(`\t\t\t\treturn`);
   lines.push(`\t\t\tend`);
-  lines.push(`\t\t\tlocal id = r:readu8()`);
+  lines.push(`\t\t\tconst id = r:readu8()`);
 
   let hasClientEvent = false;
   for (let i = 0; i < events.length; i++) {
@@ -236,7 +240,7 @@ function generateServer(ast, runtimeRequirePath, channelName) {
       lines.push(`\t\t\t\t\ttask.spawn(cb, player${names.length ? ", " + names.join(", ") : ""})`);
       lines.push(`\t\t\t\tend`);
     } else {
-      lines.push(`\t\t\t\tlocal cb = ${event.name}_callback`);
+      lines.push(`\t\t\t\tconst cb = ${event.name}_callback`);
       lines.push(`\t\t\t\tif cb then`);
       if (event.call.includes("Sync")) {
         lines.push(`\t\t\t\t\tcb(player${names.length ? ", " + names.join(", ") : ""})`);
@@ -259,11 +263,11 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local function handleIncoming(player: Player, payload: unknown, maxBytes: number)`);
+  lines.push(`const function handleIncoming(player: Player, payload: unknown, maxBytes: number)`);
   lines.push(`\tif typeof(payload) ~= "buffer" then`);
   lines.push(`\t\treturn`);
   lines.push(`\tend`);
-  lines.push(`\tlocal buf = payload :: buffer`);
+  lines.push(`\tconst buf = payload :: buffer`);
   lines.push(`\tif buffer.len(buf) <= 0 or buffer.len(buf) > maxBytes then`);
   lines.push(`\t\treturn`);
   lines.push(`\tend`);
@@ -274,10 +278,9 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local Debi = {}`);
+  lines.push(`const Debi = {}`);
   lines.push(``);
 
-  // Server->Client fire APIs
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
     const id = i + 1;
@@ -289,7 +292,7 @@ function generateServer(ast, runtimeRequirePath, channelName) {
     lines.push(`Debi.${event.name} = {}`);
     lines.push(``);
     lines.push(`function Debi.${event.name}.Fire(player: Player${argsSig ? ", " + argsSig : ""})`);
-    lines.push(`\tlocal w = getQueue(${queueMap}, player)`);
+    lines.push(`\tconst w = getQueue(${queueMap}, player)`);
     lines.push(`\tw:writeu8(${id})`);
     if (event.data.length) {
       lines.push(writeEventPayload(event, typeMap, "\t"));
@@ -297,13 +300,13 @@ function generateServer(ast, runtimeRequirePath, channelName) {
     lines.push(`end`);
     lines.push(``);
     lines.push(`function Debi.${event.name}.FireAll(${argsSig})`);
-    lines.push(`\tfor _, player in game:GetService("Players"):GetPlayers() do`);
+    lines.push(`\tfor _, player in Players:GetPlayers() do`);
     lines.push(`\t\tDebi.${event.name}.Fire(player${event.data.map((f) => ", " + f.name).join("")})`);
     lines.push(`\tend`);
     lines.push(`end`);
     lines.push(``);
     lines.push(`function Debi.${event.name}.FireExcept(except: Player${argsSig ? ", " + argsSig : ""})`);
-    lines.push(`\tfor _, player in game:GetService("Players"):GetPlayers() do`);
+    lines.push(`\tfor _, player in Players:GetPlayers() do`);
     lines.push(`\t\tif player ~= except then`);
     lines.push(`\t\t\tDebi.${event.name}.Fire(player${event.data.map((f) => ", " + f.name).join("")})`);
     lines.push(`\t\tend`);
@@ -312,7 +315,6 @@ function generateServer(ast, runtimeRequirePath, channelName) {
     lines.push(``);
   }
 
-  // Client->Server SetCallback on server
   for (const event of events) {
     if (event.from !== "Client") continue;
     const args = eventArgsLuau(event, typeMap, true);
@@ -334,11 +336,10 @@ function generateServer(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  // auto-start on require
   lines.push(`do`);
-  lines.push(`\tlocal r = Remotes.getServer(CHANNEL)`);
+  lines.push(`\tconst r = Remotes.getServer(CHANNEL)`);
   lines.push(`\tremotes = r`);
-  lines.push(`\tgame:GetService("Players").PlayerRemoving:Connect(function(player: Player)`);
+  lines.push(`\tPlayers.PlayerRemoving:Connect(function(player: Player)`);
   lines.push(`\t\tpacketCounts[player] = nil`);
   lines.push(`\t\treliableQueues[player] = nil`);
   lines.push(`\t\tunreliableQueues[player] = nil`);
@@ -376,6 +377,7 @@ function generateClient(ast, runtimeRequirePath, channelName) {
   lines.push(``);
   lines.push(`const RunService = game:GetService("RunService")`);
   lines.push(`const ReplicatedStorage = game:GetService("ReplicatedStorage")`);
+  lines.push(`const Players = game:GetService("Players")`);
   lines.push(``);
   lines.push(`const BufferWriter = require(${runtimeRequirePath}.BufferWriter)`);
   lines.push(`const BufferReader = require(${runtimeRequirePath}.BufferReader)`);
@@ -404,7 +406,7 @@ function generateClient(ast, runtimeRequirePath, channelName) {
   }
   lines.push(``);
 
-  lines.push(`local function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)`);
+  lines.push(`const function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)`);
   lines.push(`\tif w:len() == 0 then`);
   lines.push(`\t\treturn`);
   lines.push(`\tend`);
@@ -413,8 +415,8 @@ function generateClient(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local function flushAll()`);
-  lines.push(`\tlocal r = remotes`);
+  lines.push(`const function flushAll()`);
+  lines.push(`\tconst r = remotes`);
   lines.push(`\tif not r then`);
   lines.push(`\t\treturn`);
   lines.push(`\tend`);
@@ -423,10 +425,10 @@ function generateClient(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local function dispatchServer(buf: buffer)`);
-  lines.push(`\tlocal r = BufferReader.new(buf)`);
+  lines.push(`const function dispatchServer(buf: buffer)`);
+  lines.push(`\tconst r = BufferReader.new(buf)`);
   lines.push(`\twhile r:hasMore() do`);
-  lines.push(`\t\tlocal id = r:readu8()`);
+  lines.push(`\t\tconst id = r:readu8()`);
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
@@ -440,7 +442,7 @@ function generateClient(ast, runtimeRequirePath, channelName) {
       lines.push(`\t\t\t\ttask.spawn(cb${names.length ? ", " + names.join(", ") : ""})`);
       lines.push(`\t\t\tend`);
     } else {
-      lines.push(`\t\t\tlocal cb = ${event.name}_callback`);
+      lines.push(`\t\t\tconst cb = ${event.name}_callback`);
       lines.push(`\t\t\tif cb then`);
       if (event.call.includes("Sync")) {
         lines.push(`\t\t\t\tcb(${names.join(", ")})`);
@@ -457,10 +459,9 @@ function generateClient(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  lines.push(`local Debi = {}`);
+  lines.push(`const Debi = {}`);
   lines.push(``);
 
-  // Client fire for Client->Server
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
     const id = i + 1;
@@ -471,7 +472,7 @@ function generateClient(ast, runtimeRequirePath, channelName) {
     lines.push(`Debi.${event.name} = {}`);
     lines.push(``);
     lines.push(`function Debi.${event.name}.Fire(${argsSig})`);
-    lines.push(`\tlocal w = ${writer}`);
+    lines.push(`\tconst w = ${writer}`);
     lines.push(`\tw:writeu8(${id})`);
     if (event.data.length) {
       lines.push(writeEventPayload(event, typeMap, "\t"));
@@ -480,7 +481,6 @@ function generateClient(ast, runtimeRequirePath, channelName) {
     lines.push(``);
   }
 
-  // Server->Client callbacks on client
   for (const event of events) {
     if (event.from !== "Server") continue;
     const args = eventArgsLuau(event, typeMap, false);
@@ -502,9 +502,8 @@ function generateClient(ast, runtimeRequirePath, channelName) {
   lines.push(`end`);
   lines.push(``);
 
-  // auto-start on require
   lines.push(`do`);
-  lines.push(`\tlocal r = Remotes.getClient(CHANNEL)`);
+  lines.push(`\tconst r = Remotes.getClient(CHANNEL)`);
   lines.push(`\tremotes = r`);
   lines.push(`\tr.Reliable.OnClientEvent:Connect(function(payload: unknown)`);
   lines.push(`\t\tif typeof(payload) ~= "buffer" then`);

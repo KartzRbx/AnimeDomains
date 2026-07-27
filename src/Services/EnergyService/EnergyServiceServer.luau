@@ -7,17 +7,19 @@ const RunService = game:GetService("RunService")
 const Janitor = require(ReplicatedStorage.Packages.janitor)
 const EnergyConstants = require(ReplicatedStorage.Shareds.Services.EnergyService.EnergyConstants)
 const EnergyEnums = require(ReplicatedStorage.Shareds.Services.EnergyService.EnergyEnums)
-const Debi = require(ReplicatedStorage.Shareds.Networker.Net).Game
+const Debi = require(ReplicatedStorage.Shareds.Networker.NetServer).Game
 
 type JanitorObject = typeof(Janitor.new())
 
 export type MultiplierMode = "1x" | "2x" | "3x"
 export type PlayersToRender = { [Player]: boolean }
 
+
+const ENERGY_ATTRIBUTE_NAME = 'Energy'
 const SYNC_INTERVAL = 1 / 12
 const ENERGY_EPSILON = 0.01
 
-local EnergyServiceServer = {
+const EnergyServiceServer = {
 	initialized = false,
 	janitor = Janitor.new() :: JanitorObject,
 	playerToRender = {} :: PlayersToRender,
@@ -27,6 +29,14 @@ local EnergyServiceServer = {
 }
 
 export type EnergyServiceServer = typeof(EnergyServiceServer)
+
+const function readEnergy(player: Player): number
+	const energyAttribute = player:GetAttribute("Energy")
+	if typeof(energyAttribute) == "number" then
+		return energyAttribute
+	end
+	return EnergyConstants.STARTER_ENERGY
+end
 
 function EnergyServiceServer.SetMultiplierMode(self: EnergyServiceServer, mode: MultiplierMode): ()
 	if not self.initialized then
@@ -43,14 +53,10 @@ function EnergyServiceServer.RenderEnergyLoop(self: EnergyServiceServer): ()
 	self.janitor:add(
 		RunService.Heartbeat:Connect(function(deltaTime: number)
 			for player in self.playerToRender do
-				local energyAttribute = player:GetAttribute("Energy")
-				local energy = if typeof(energyAttribute) == "number"
-					then energyAttribute
-					else EnergyConstants.STARTER_ENERGY
-
+				const energy = readEnergy(player)
 				const regenRate = EnergyConstants.REGEN_PER_SECOND * EnergyEnums.MultipliersMode[self.multiplierMode]
 				const newEnergy = math.min(EnergyConstants.MAX_ENERGY, energy + regenRate * deltaTime)
-				player:SetAttribute("Energy", newEnergy)
+				player:SetAttribute(ENERGY_ATTRIBUTE_NAME, newEnergy)
 			end
 
 			self.syncAccumulator += deltaTime
@@ -60,8 +66,7 @@ function EnergyServiceServer.RenderEnergyLoop(self: EnergyServiceServer): ()
 			self.syncAccumulator = 0
 
 			for player in self.playerToRender do
-				local energyAttribute = player:GetAttribute("Energy")
-				const energy = if typeof(energyAttribute) == "number" then energyAttribute else 0
+				const energy = readEnergy(player)
 				const last = self.lastSentEnergy[player]
 				if last ~= nil and math.abs(energy - last) < ENERGY_EPSILON then
 					continue
@@ -84,7 +89,15 @@ function EnergyServiceServer.FetchPlayerEnergy(self: EnergyServiceServer, player
 	end
 
 	self.playerToRender[player] = true
+	if typeof(player:GetAttribute(ENERGY_ATTRIBUTE_NAME)) ~= "number" then
+		player:SetAttribute(ENERGY_ATTRIBUTE_NAME, EnergyConstants.STARTER_ENERGY)
+	end
+
+	const energy = readEnergy(player)
+	self.lastSentEnergy[player] = energy
+	Debi.FetchPlayerEnergy.Fire(player, energy)
 end
+
 
 function EnergyServiceServer.Init(self: EnergyServiceServer): EnergyServiceServer
 	if self.initialized then
@@ -110,5 +123,43 @@ function EnergyServiceServer.Init(self: EnergyServiceServer): EnergyServiceServe
 
 	return self
 end
+
+-- << PUBLIC FUNC >> -- 
+
+function EnergyServiceServer.GetPlayerEnergy(self: EnergyServiceServer, target: Player): number?
+	if not target or not Players:FindFirstChild(target.Name) then
+			warn('Target player not found.')
+		return
+	end
+
+	if not target:GetAttribute(ENERGY_ATTRIBUTE_NAME) then
+			warn('Error to request player attribute.')
+		return 
+	end
+
+	return target:GetAttribute(ENERGY_ATTRIBUTE_NAME) :: number
+end
+
+function EnergyServiceServer.SetPlayerEnergy(self: EnergyServiceServer, target: Player, targetEnergy: number): any
+	print(target, targetEnergy)
+	if not target or not Players:FindFirstChild(target.Name) or not self.playerToRender[target] then
+			warn('Target player not found.')
+		return
+	end
+
+	if not targetEnergy or type(targetEnergy) ~= 'number' then
+			warn('Invalid targetEnergy value, cannot change of number')
+		return
+	end
+
+	if not target:GetAttribute(ENERGY_ATTRIBUTE_NAME) then
+			warn('Error to request player attribute.')
+		return 
+	end
+
+	return target:SetAttribute(ENERGY_ATTRIBUTE_NAME, targetEnergy)
+end
+
+-- << END >>
 
 return EnergyServiceServer

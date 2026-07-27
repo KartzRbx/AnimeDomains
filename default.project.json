@@ -13,6 +13,12 @@
           "$className": "Folder",
           "CardsService": {
             "$className": "Folder",
+            "CardsCutscenes": {
+              "$path": "src/Services/CardsService/CardsCutscenes.luau"
+            },
+            "CardsEntityManager": {
+              "$path": "src/Services/CardsService/CardsEntityManager.luau"
+            },
             "CardsServiceClient": {
               "$path": "src/Services/CardsService/CardsServiceClient.luau"
             },
@@ -60,15 +66,6 @@
             },
             "EnergyTypes": {
               "$path": "src/Services/EnergyService/EnergyTypes.luau"
-            },
-            "Interface": {
-              "$className": "Folder",
-              "Lib": {
-                "$className": "Folder",
-                "TweenBar": {
-                  "$path": "src/Services/EnergyService/Interface/Lib/TweenBar.luau"
-                }
-              }
             }
           },
           "GameplayService": {
@@ -98,8 +95,11 @@
         },
         "Networker": {
           "$className": "Folder",
-          "Net": {
-            "$path": "src/Networker/Net.luau"
+          "NetClient": {
+            "$path": "src/Networker/NetClient.luau"
+          },
+          "NetServer": {
+            "$path": "src/Networker/NetServer.luau"
           },
           "Game": {
             "$className": "Folder",
@@ -173,6 +173,12 @@
             "$className": "Folder",
             "Commands": {
               "$className": "Folder",
+              "EndGame": {
+                "$path": "src/Handlers/Cmdr/Commands/EndGame.luau"
+              },
+              "EndGameServer": {
+                "$path": "src/Handlers/Cmdr/Commands/EndGameServer.luau"
+              },
               "StartMatch": {
                 "$path": "src/Handlers/Cmdr/Commands/StartMatch.luau"
               },

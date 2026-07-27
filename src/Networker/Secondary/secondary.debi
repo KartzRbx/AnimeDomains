@@ -1,5 +1,15 @@
--- Debi Secondary channel (extras / secondary systems)
+-----------------------------------------
+--- << SECONDARY CHANNEL >> ---
+-----------------------------------------
 
 opt channel = "Secondary"
 opt server_output = "src/Networker/Secondary/Server.luau"
 opt client_output = "src/Networker/Secondary/Client.luau"
+
+-----------------------------------------
+--- << TYPES >> ---
+-----------------------------------------
+
+-----------------------------------------
+--- << EVENTS >> ---
+-----------------------------------------

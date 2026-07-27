@@ -81,7 +81,7 @@ const function waitFolder(parent: Instance, name: string): Folder
 end
 
 const function findTemplate(parent: Instance, templateName: string, pathLabel: string): Instance
-	local template = parent:FindFirstChild(templateName)
+	local template = parent:FindFirstChild(templateName, true)
 	assert(template, `Template not found: {pathLabel}/{templateName}`)
 	return template
 end

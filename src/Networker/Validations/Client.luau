@@ -3,6 +3,7 @@
 
 const RunService = game:GetService("RunService")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const Players = game:GetService("Players")
 
 const BufferWriter = require(ReplicatedStorage.Shareds.Modules.Debi.BufferWriter)
 const BufferReader = require(ReplicatedStorage.Shareds.Modules.Debi.BufferReader)
@@ -19,7 +20,7 @@ local remotes: Remotes.DebiRemotes? = nil
 local flushing = false
 
 
-local function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)
+const function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)
 	if w:len() == 0 then
 		return
 	end
@@ -27,8 +28,8 @@ local function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | U
 	w:reset()
 end
 
-local function flushAll()
-	local r = remotes
+const function flushAll()
+	const r = remotes
 	if not r then
 		return
 	end
@@ -36,22 +37,22 @@ local function flushAll()
 	flushWriter(unreliableWriter, r.Unreliable)
 end
 
-local function dispatchServer(buf: buffer)
-	local r = BufferReader.new(buf)
+const function dispatchServer(buf: buffer)
+	const r = BufferReader.new(buf)
 	while r:hasMore() do
-		local id = r:readu8()
+		const id = r:readu8()
 		warn("[Debi] unknown server event id", id)
 	end
 end
 
-local Debi = {}
+const Debi = {}
 
 function Debi.Flush()
 	flushAll()
 end
 
 do
-	local r = Remotes.getClient(CHANNEL)
+	const r = Remotes.getClient(CHANNEL)
 	remotes = r
 	r.Reliable.OnClientEvent:Connect(function(payload: unknown)
 		if typeof(payload) ~= "buffer" then

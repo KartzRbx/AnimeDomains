@@ -6,7 +6,7 @@ const Workspace = game:GetService("Workspace")
 
 const GameplayTypes = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayTypes)
 const Islands = require(ReplicatedStorage.Shareds.Constants.Datas.Islands)
-const CollisionGroupsUtils = require(ReplicatedStorage.Shareds.Utils.CollisionGroupsUtils)
+const CollisionGroupsUtils = require(ReplicatedStorage.Shareds.Utils.CollisionGroupUtil)
 
 const GameplayBuildMap = {}
 

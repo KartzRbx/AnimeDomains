@@ -4,11 +4,12 @@ const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 const EnergyService = require(script.Parent.EnergyService)
+const CardsServiceServer = require(script.Parent.CardsService)
 const GameplayTypes = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayTypes)
 const GameplayBuildMap = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayBuildMap)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
 const Islands = require(ReplicatedStorage.Shareds.Constants.Datas.Islands)
-const Debi = require(ReplicatedStorage.Shareds.Networker.Net).Game
+const Debi = require(ReplicatedStorage.Shareds.Networker.NetServer).Game
 const Janitor = require(ReplicatedStorage.Packages.janitor)
 const DataServiceV2 = require(ReplicatedStorage.Shareds.Workers.DataServiceV2)
 const Server = DataServiceV2.Server
@@ -28,7 +29,7 @@ const GameplayServiceServer = {
 	CurrentMapId = nil :: GameplayTypes.MapId?,
 }
 
-local function AsString(value: any, fallback: string): string
+const function AsString(value: any, fallback: string): string
 	if type(value) == "string" and value ~= "" then
 		return value
 	end
@@ -36,7 +37,7 @@ local function AsString(value: any, fallback: string): string
 	return fallback
 end
 
-local function AsNumber(value: any, fallback: number): number
+const function AsNumber(value: any, fallback: number): number
 	if type(value) == "number" then
 		return value
 	end
@@ -44,7 +45,7 @@ local function AsNumber(value: any, fallback: number): number
 	return fallback
 end
 
-local function NormalizeTowerInfo(value: any): GameplayTypes.TowerInfo
+const function NormalizeTowerInfo(value: any): GameplayTypes.TowerInfo
 	if type(value) == "table" then
 		return {
 			Id = AsString(value.Id, "Dummy"),
@@ -65,7 +66,7 @@ local function NormalizeTowerInfo(value: any): GameplayTypes.TowerInfo
 	}
 end
 
-local function GetTowersFromPlayerData(playerData: any): GameplayTypes.TeamTowers
+const function GetTowersFromPlayerData(playerData: any): GameplayTypes.TeamTowers
 	local towers = playerData:Get(Paths.Game.Towers)
 
 	if type(towers) ~= "table" then
@@ -83,7 +84,7 @@ local function GetTowersFromPlayerData(playerData: any): GameplayTypes.TeamTower
 	}
 end
 
-local function GetDeckFromPlayerData(playerData: any): { string }
+const function GetDeckFromPlayerData(playerData: any): { string }
 	local deck: { string } = {}
 	local savedDeck = playerData:Get(Paths.Game.Deck)
 
@@ -114,11 +115,28 @@ local function GetDeckFromPlayerData(playerData: any): { string }
 	return deck
 end
 
-local function GetTeamPlayerSpawn(teamName: string): BasePart?
+const function GetTeamFolder(teamName: string): Folder?
 	local gameFolder = workspace:FindFirstChild("Game")
 	local gameplay = gameFolder and gameFolder:FindFirstChild("Gameplay")
 	local teams = gameplay and gameplay:FindFirstChild("Teams")
 	local teamFolder = teams and teams:FindFirstChild(teamName)
+	if teamFolder and teamFolder:IsA("Folder") then
+		return teamFolder
+	end
+	return nil
+end
+
+const function GetTeamPlayersFolder(teamName: string): Folder?
+	local teamFolder = GetTeamFolder(teamName)
+	local playersFolder = teamFolder and teamFolder:FindFirstChild("Players")
+	if playersFolder and playersFolder:IsA("Folder") then
+		return playersFolder
+	end
+	return nil
+end
+
+const function GetTeamPlayerSpawn(teamName: string): BasePart?
+	local teamFolder = GetTeamFolder(teamName)
 	local interactions = teamFolder and teamFolder:FindFirstChild("Interactions")
 	local playerSpawn = interactions and interactions:FindFirstChild("PlayerSpawn")
 
@@ -129,11 +147,20 @@ local function GetTeamPlayerSpawn(teamName: string): BasePart?
 	return nil
 end
 
-local function HasPlayerSpawn(teamName: string): boolean
+const function HasPlayerSpawn(teamName: string): boolean
 	return GetTeamPlayerSpawn(teamName) ~= nil
 end
 
-local function TeleportCharacterToSpawn(player: Player, teamName: string): ()
+const function MoveCharacterToTeamFolder(character: Model, teamName: string): ()
+	local playersFolder = GetTeamPlayersFolder(teamName)
+	if not playersFolder then
+		warn(`[GameplayService] Players folder not found for team: {teamName}`)
+		return
+	end
+	character.Parent = playersFolder
+end
+
+const function TeleportCharacterToSpawn(player: Player, teamName: string): ()
 	local character = player.Character or player.CharacterAdded:Wait()
 	local spawnPart = GetTeamPlayerSpawn(teamName)
 
@@ -142,6 +169,7 @@ local function TeleportCharacterToSpawn(player: Player, teamName: string): ()
 		return
 	end
 
+	MoveCharacterToTeamFolder(character, teamName)
 	character:PivotTo(spawnPart.CFrame + Vector3.new(0, 3, 0))
 end
 
@@ -161,6 +189,7 @@ function GameplayServiceServer.CreateDefaultProperties(player: Player): Gameplay
 	}
 end
 
+
 function GameplayServiceServer.GetDefaultTeamData(owner: string): GameplayTypes.TeamData
 	local player = Players:FindFirstChild(owner)
 
@@ -176,6 +205,7 @@ function GameplayServiceServer.GetDefaultTeamData(owner: string): GameplayTypes.
 		}
 	end
 
+	-- IA
 	return {
 		Owner = owner,
 		Data = {
@@ -184,7 +214,16 @@ function GameplayServiceServer.GetDefaultTeamData(owner: string): GameplayTypes.
 				Main = { Id = "Dummy", Level = 1 },
 				Right = { Id = "Dummy", Level = 1 },
 			},
-			Deck = { "Sabre" },
+			Deck = {
+				"Sabre",
+				"PlaceholderOne",
+				"PlaceholderTwo",
+				"PlaceholderThree",
+				"PlaceholderFour",
+				"PlaceholderFive",
+				"PlaceholderSix",
+				"PlaceholderSeven",
+			},
 		},
 	}
 end
@@ -252,6 +291,10 @@ function GameplayServiceServer.StartMatch(
 		local player = Players:FindFirstChild(playerName)
 		if player and player:IsA("Player") then
 			local teamName = if index == 1 then "One" else "Two"
+			local teamData = GameplayServiceServer.GetDefaultTeamData(player.Name)
+			CardsServiceServer:BindPlayerHand(player, teamData.Data.Deck)
+			EnergyService:FetchPlayerEnergy(player)
+
 			task.spawn(function()
 				if player.Character == nil then
 					player.CharacterAdded:Wait()
@@ -260,7 +303,6 @@ function GameplayServiceServer.StartMatch(
 				self:SendMatchState(player)
 			end)
 		end
-		EnergyService:FetchPlayerEnergy(player)
 	end
 
 	print("[GameplayService] Match started:", matchId, props.GameConfig.MapId, props.GameConfig.GameMode)
@@ -311,6 +353,46 @@ function GameplayServiceServer.StartMatchCommand(
 	return true, `Match {match.MatchId} | map={mapName} | mode=1v1 | players={table.concat(playerNames, ", ")}`
 end
 
+-- Cmdr: end-game [players]
+function GameplayServiceServer.EndMatchCommand(
+	self: GameplayServiceServer,
+	players: { Player }?
+): (boolean, string)
+	assert(self.Initialized, "GameplayService not initialized")
+
+	if not players or #players == 0 then
+		local count = 0
+		for matchId: GameplayTypes.MatchId in self.Matches do
+			self:EndMatch(matchId)
+			count += 1
+		end
+
+		if count == 0 then
+			return false, "no active matches"
+		end
+
+		return true, `ended {count} match(es)`
+	end
+
+	local ended: { string } = {}
+	local seen: { [string]: boolean } = {}
+
+	for _, player in players do
+		local match = self:GetMatchByPlayer(player)
+		if match and not seen[match.MatchId] then
+			seen[match.MatchId] = true
+			self:EndMatch(match.MatchId)
+			table.insert(ended, match.MatchId)
+		end
+	end
+
+	if #ended == 0 then
+		return false, "no active match for selected player(s)"
+	end
+
+	return true, `ended match(es): {table.concat(ended, ", ")}`
+end
+
 -- Enemy tower fell → unlock attacker's lane (LeftTower → "Left")
 function GameplayServiceServer.OnEnemyTowerDestroyed(
 	self: GameplayServiceServer,
@@ -344,6 +426,14 @@ function GameplayServiceServer.EndMatch(self: GameplayServiceServer, matchId: Ga
 	end
 
 	match.Status = "Finished"
+
+	for _, playerName in match.Players do
+		local player = Players:FindFirstChild(playerName)
+		if player and player:IsA("Player") then
+			CardsServiceServer:ClearPlayerHand(player)
+		end
+	end
+
 	self.Matches[matchId] = nil
 	print("[GameplayService] Match finished:", matchId)
 

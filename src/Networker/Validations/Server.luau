@@ -3,12 +3,18 @@
 
 const RunService = game:GetService("RunService")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const Players = game:GetService("Players")
 
 const BufferWriter = require(ReplicatedStorage.Shareds.Modules.Debi.BufferWriter)
 const BufferReader = require(ReplicatedStorage.Shareds.Modules.Debi.BufferReader)
 const Remotes = require(ReplicatedStorage.Shareds.Modules.Debi.Remotes)
 
 const CHANNEL = "Validations"
+const MAX_RELIABLE_BYTES = 8192
+const MAX_UNRELIABLE_BYTES = 900
+const MAX_EVENTS_PER_PACKET = 64
+const RATE_LIMIT_WINDOW = 1
+const RATE_LIMIT_MAX = 90
 
 assert(RunService:IsServer(), "[Debi/Validations] Server.luau can only be required on the server")
 
@@ -19,9 +25,10 @@ local reliableQueues: { [Player]: BufferWriter.BufferWriter } = {}
 local unreliableQueues: { [Player]: BufferWriter.BufferWriter } = {}
 local remotes: Remotes.DebiRemotes? = nil
 local flushing = false
+local packetCounts: { [Player]: { count: number, resetAt: number } } = {}
 
 
-local function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Player): BufferWriter.BufferWriter
+const function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Player): BufferWriter.BufferWriter
 	local q = map[player]
 	if not q then
 		q = BufferWriter.new()
@@ -30,8 +37,8 @@ local function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Pl
 	return q
 end
 
-local function flushPlayer(player: Player, map: { [Player]: BufferWriter.BufferWriter }, remote: RemoteEvent | UnreliableRemoteEvent)
-	local q = map[player]
+const function flushPlayer(player: Player, map: { [Player]: BufferWriter.BufferWriter }, remote: RemoteEvent | UnreliableRemoteEvent)
+	const q = map[player]
 	if not q or q:len() == 0 then
 		return
 	end
@@ -39,8 +46,8 @@ local function flushPlayer(player: Player, map: { [Player]: BufferWriter.BufferW
 	q:reset()
 end
 
-local function flushAll()
-	local r = remotes
+const function flushAll()
+	const r = remotes
 	if not r then
 		return
 	end
@@ -52,16 +59,9 @@ local function flushAll()
 	end
 end
 
-local MAX_RELIABLE_BYTES = 8192
-local MAX_UNRELIABLE_BYTES = 900
-local MAX_EVENTS_PER_PACKET = 64
-local RATE_LIMIT_WINDOW = 1
-local RATE_LIMIT_MAX = 90
-local packetCounts: { [Player]: { count: number, resetAt: number } } = {}
-
-local function allowPacket(player: Player): boolean
-	local now = os.clock()
-	local entry = packetCounts[player]
+const function allowPacket(player: Player): boolean
+	const now = os.clock()
+	const entry = packetCounts[player]
 	if not entry or now >= entry.resetAt then
 		packetCounts[player] = { count = 1, resetAt = now + RATE_LIMIT_WINDOW }
 		return true
@@ -73,26 +73,26 @@ local function allowPacket(player: Player): boolean
 	return true
 end
 
-local function dispatchClient(player: Player, buf: buffer)
+const function dispatchClient(player: Player, buf: buffer)
 	pcall(function()
-		local r = BufferReader.new(buf)
+		const r = BufferReader.new(buf)
 		local eventsRead = 0
 		while r:hasMore() do
 			eventsRead += 1
 			if eventsRead > MAX_EVENTS_PER_PACKET then
 				return
 			end
-			local id = r:readu8()
+			const id = r:readu8()
 			return
 		end
 	end)
 end
 
-local function handleIncoming(player: Player, payload: unknown, maxBytes: number)
+const function handleIncoming(player: Player, payload: unknown, maxBytes: number)
 	if typeof(payload) ~= "buffer" then
 		return
 	end
-	local buf = payload :: buffer
+	const buf = payload :: buffer
 	if buffer.len(buf) <= 0 or buffer.len(buf) > maxBytes then
 		return
 	end
@@ -102,16 +102,16 @@ local function handleIncoming(player: Player, payload: unknown, maxBytes: number
 	dispatchClient(player, buf)
 end
 
-local Debi = {}
+const Debi = {}
 
 function Debi.Flush()
 	flushAll()
 end
 
 do
-	local r = Remotes.getServer(CHANNEL)
+	const r = Remotes.getServer(CHANNEL)
 	remotes = r
-	game:GetService("Players").PlayerRemoving:Connect(function(player: Player)
+	Players.PlayerRemoving:Connect(function(player: Player)
 		packetCounts[player] = nil
 		reliableQueues[player] = nil
 		unreliableQueues[player] = nil

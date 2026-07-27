@@ -19,6 +19,7 @@ export type UnitData = {
 	BaseDamage: number,
 	BaseRange: number,
 	DelayAttack: number,
+	DeployTime: number,
 	EnergyCost: number,
 	Class: string,
 	ModelID: string,
@@ -43,6 +44,7 @@ local Unit: UnitData = {
 	BaseRange = 5,
 	Class = "S",
 	DelayAttack = 1,
+	DeployTime = 1, -- Knight-like melee troop — CR wiki Deploy Time: 1 sec
 	EnergyCost = 3,
 	ModelID = "Sabre",
 	Position = Vector3.zero,

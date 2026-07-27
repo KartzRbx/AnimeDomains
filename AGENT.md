@@ -1,42 +1,42 @@
-# Agent Guide — Estilo Luau / Roblox
+# Agent Guide — Luau / Roblox Style
 
-Guia obrigatório para agentes de IA e desenvolvedores que trabalham em repositórios que seguem este estilo de programação. Descreve **convenções, prioridades e comportamento do agente** — não um jogo ou produto específico.
+Mandatory guide for AI agents and developers working in repositories that follow this programming style. Describes **conventions, priorities, and agent behavior** — not a specific game or product.
 
-Para arquitetura detalhada do repositório atual, consulte [Docs/FRAMEWORK.md](Docs/FRAMEWORK.md) quando existir no projeto.
+For detailed architecture of the current repository, see [Docs/FRAMEWORK.md](Docs/FRAMEWORK.md) when it exists in the project.
 
 ---
 
-## Bootstrap — recriar o ambiente completo
+## Bootstrap — recreate the full environment
 
-Este `AGENT.md` é a **fonte da verdade** do estilo. Com um único comando o agente recria o workspace inteiro (Rojo, Rokit, Wally, Selene, `sourcemap`, `src/`, `.cursor/`, docs).
+This `AGENT.md` is the **source of truth** for the style. With a single command the agent recreates the entire workspace (Rojo, Rokit, Wally, Selene, `sourcemap`, `src/`, `.cursor/`, docs).
 
-### Comandos que disparam bootstrap
+### Commands that trigger bootstrap
 
 - `bootstrap framework`
 - `setup framework` / `inicie o ambiente` / `configurar framework`
 - `criar projeto roblox` / `scaffold framework`
 
-### O que o agente deve fazer
+### What the agent must do
 
-1. Ler e executar **`.cursor/skills/bootstrap-framework/SKILL.md`**
-2. Copiar templates de `.cursor/skills/bootstrap-framework/templates/` para a raiz do projeto
-3. Substituir `{{PROJECT_NAME}}` e `{{WALLY_PACKAGE}}` nos configs
-4. Rodar: `rokit install` → `wally install` → `rojo sourcemap default.project.json -o sourcemap.json` → `rojo build` (verificar) → `rojo plugin install`
+1. Read and execute **`.cursor/skills/bootstrap-framework/SKILL.md`**
+2. Copy templates from `.cursor/skills/bootstrap-framework/templates/` to the project root
+3. Replace `{{PROJECT_NAME}}` and `{{WALLY_PACKAGE}}` in the configs
+4. Run: `rokit install` → `wally install` → `rojo sourcemap default.project.json -o sourcemap.json` → `rojo build` (verify) → `rojo plugin install`
 
-### Seed mínimo (repositório novo / vazio)
+### Minimum seed (new / empty repository)
 
-Copiar só estes dois itens para a pasta do projeto:
+Copy only these two items into the project folder:
 
 ```
 AGENT.md
-.cursor/skills/bootstrap-framework/    # inclui templates/
+.cursor/skills/bootstrap-framework/    # includes templates/
 ```
 
-Depois: **bootstrap framework**. O agente entrega o resto.
+Then: **bootstrap framework**. The agent delivers the rest.
 
-### Entregável esperado após bootstrap
+### Expected deliverable after bootstrap
 
-| Item | Origem |
+| Item | Origin |
 |---|---|
 | `default.project.json`, `rokit.toml`, `wally.toml`, `selene.toml`, `.gitignore` | templates |
 | `src/` skeleton (Boots, PlayerData, DataServiceV2, Networking, …) | templates |
@@ -46,211 +46,263 @@ Depois: **bootstrap framework**. O agente entrega o resto.
 | `wally.lock` | `wally install` |
 | `sourcemap.json` | `rojo sourcemap` |
 
-**Manter templates atualizados:** ao evoluir o framework neste repositório canônico, sincronizar `.cursor/skills/bootstrap-framework/templates/` com as mudanças.
+**Keep templates up to date:** when evolving the framework in this canonical repository, sync `.cursor/skills/bootstrap-framework/templates/` with the changes.
 
 ---
 
-## Visão geral
+## Overview
 
-Projetos com este estilo são jogos **Roblox (Luau)** sincronizados via **Rojo**, com camadas explícitas e tipagem estrita. Prioridades ao gerar código:
+Projects with this style are **Roblox (Luau)** games synced via **Rojo**, with explicit layers and strict typing. Priorities when generating code:
 
-1. Arquitetura em camadas (Boot → Services → Handlers / Controllers)
-2. Tipagem estrita (`--!strict`, `export type` semântico, `const`)
-3. Ciclo de vida explícito (`:Init()` / `:init()` — nunca side effects no `require`)
-4. Performance em hot paths (pooling, cache, rede mínima)
-5. Servidor como fonte da verdade
+1. Layered architecture (Boot → Services → Handlers / Controllers)
+2. Strict typing (`--!strict`, semantic `export type`, `const`)
+3. Explicit lifecycle (`:Init()` / `:init()` — never side effects in `require`)
+4. Performance on hot paths (pooling, cache, minimal networking)
+5. Server as the source of truth
 
-**Regra central:** `require` **não** registra listeners, **não** muta dados e **não** toca em instâncias do jogo. Tudo isso acontece somente após `:Init()` (servidor/controllers) ou `:init()` (`*ServiceClient`).
+**Central rule:** `require` does **not** register listeners, does **not** mutate data, and does **not** touch game instances. All of that happens only after `:Init()` (server/controllers) or `:init()` (`*ServiceClient`).
 
 ---
 
-## Skills do Cursor
+## Author style — hand-written code (mandatory)
 
-### Organização do `.cursor/`
+The owner programs **by hand**. Their code is the source of truth for *how* things are written in a file — not the agent's preferred organization.
 
-Estrutura padrão do repositório. **Nunca** criar skills em `~/.cursor/skills-cursor/` (reservado ao Cursor).
+### Agent must
+
+1. **Match the author's existing style** in the file being edited: naming, `const`/`local` choices already present, spacing, section markers, stub shapes, incomplete helpers they are mid-writing.
+2. **Only change what was asked.** Do not rewrite, reorganize, "clean up", rename, or restructure surrounding code for taste.
+3. **Preserve bindings as written** — if the author used `const`, keep `const`. Never silently swap `const` ↔ `local` (or `const function` ↔ `local function`) unless they asked.
+4. **Leave WIP alone** — empty function bodies, `TODO`, partial `ClockTimeEffect`-style stubs, commented blocks: fill or touch them only when requested.
+5. When adding **new** code in a file the author owns, **mirror their patterns** in that file even if AGENT.md would prefer a stricter layout elsewhere.
+
+### Agent must not
+
+- "Improve organization" of hand-written modules without an explicit request
+- Replace the author's structure with a full rewrite during a small fix
+- Impose agent formatting preferences over the author's established voice in that file
+
+> **Priority:** Author hand style in the open file **wins** over the agent's idea of cleaner code. Framework rules in this guide still apply for *new* architecture (Services, Networker, `--!strict`, no side effects in `require`) — but style/organization of *existing* hand code is not the agent's to redesign.
+
+---
+
+## Cursor Skills
+
+### `.cursor/` organization
+
+Standard repository structure. **Never** create skills in `~/.cursor/skills-cursor/` (reserved for Cursor).
 
 ```
 .cursor/
-├── skills/                    # Skills do projeto (versionadas no git)
-│   ├── bootstrap-framework/   # Recriar ambiente completo — templates/
-│   ├── roblox-framework/      # Entrada — ler primeiro em tarefas Luau
-│   │   └── SKILL.md
+├── skills/                    # Project skills (versioned in git)
+│   ├── packages-index/        # Index of package/tool skills
+│   ├── author-hand-programming/ # Owner hand-coding voice
+│   ├── respect-author-hand-style/  # Never rewrite owner's hand voice
+│   ├── anime-domains-organization/ # src/ placement rules
+│   ├── rojo-wally-toolchain/  # Rojo + Wally + Rokit
+│   ├── debi-networker/        # Typed Debi remotes
+│   ├── janitor/ · signal/ · jecs/ · dataservicev2/ · cmdr/
+│   ├── topbarplus/ · simplepath/ · spring/ · display/
+│   ├── module3d/ · stickybillboard/ · ezvisualz/
+│   ├── formatnumber/ · vfx-util/ · jabby/
+│   ├── bootstrap-framework/   # Recreate full environment — templates/
+│   ├── roblox-framework/      # Entry — read first on Luau tasks
 │   ├── add-domain/
 │   ├── luau-style/
-│   ├── jecs-ecs/              # Entities Tower/Unit (jecs ECS)
-│   ├── anime-domains-layout/  # Onde colocar arquivos neste jogo
-│   ├── arena-maps/            # Padrão FlorestMap / Maps Clash-like
+│   ├── jecs-ecs/              # Tower/Unit entities (jecs ECS)
+│   ├── anime-domains-layout/  # Where to put files in this game
+│   ├── arena-maps/            # FlorestMap / Clash-like Maps pattern
 │   ├── entity-animations/     # Idle/Walk + AnimationResolveUtils / Signal
-│   ├── quicknet-handler/      # Legado — gameplay usa Networker tipada
+│   ├── quicknet-handler/      # Legacy — gameplay uses typed Networker
 │   ├── extend-player-data/
-│   ├── learning-mode/         # Modo aprendizado — sempre ativo
-│   └── <nova-skill>/          # Uma pasta por skill
-│       ├── SKILL.md           # Obrigatório
-│       ├── reference.md       # Opcional — detalhes longos
-│       └── examples.md        # Opcional — exemplos
-└── learnings/                 # Erros corrigidos (modo aprendizado)
-    ├── index.md               # Índice — ler antes de codificar
-    └── <slug>.md              # Um arquivo por lição aprendida
+│   ├── learning-mode/         # Learning mode — always active
+│   └── <new-skill>/          # One folder per skill
+│       ├── SKILL.md           # Required
+│       ├── reference.md       # Optional — long details
+│       └── examples.md        # Optional — examples
+└── learnings/                 # Fixed mistakes (learning mode)
+    ├── index.md               # Index — read before coding
+    └── <slug>.md              # One file per learned lesson
 ```
 
-#### Regras para criar ou editar skills
+#### Rules for creating or editing skills
 
-| Regra | Detalhe |
+| Rule | Detail |
 |---|---|
-| **Local** | Só em `.cursor/skills/<nome>/` |
-| **Nome** | lowercase, hífens, máx. 64 chars (`add-domain`, `luau-style`) |
-| **SKILL.md** | Frontmatter YAML com `name` + `description` (terceira pessoa, WHEN + WHAT) |
-| **Tamanho** | SKILL.md conciso (< 500 linhas); detalhes em `reference.md` |
-| **Escopo** | Uma skill = um workflow ou domínio claro |
-| **Duplicação** | Não repetir `AGENT.md` inteiro — resumir e linkar |
-| **Nova skill** | Preferir estender skill existente; criar nova só se workflow distinto |
-| **Promoção** | Padrão repetido 3× em `learnings/` → subir para skill ou `AGENT.md` |
+| **Location** | Only in `.cursor/skills/<name>/` |
+| **Name** | lowercase, hyphens, max 64 chars (`add-domain`, `luau-style`) |
+| **SKILL.md** | YAML frontmatter with `name` + `description` (third person, WHEN + WHAT) |
+| **Size** | Concise SKILL.md (< 500 lines); details in `reference.md` |
+| **Scope** | One skill = one clear workflow or domain |
+| **Duplication** | Do not repeat all of `AGENT.md` — summarize and link |
+| **New skill** | Prefer extending an existing skill; create a new one only for a distinct workflow |
+| **Promotion** | Pattern repeated 3× in `learnings/` → promote to skill or `AGENT.md` |
 
-#### Quando criar nova skill vs learning
+#### When to create a new skill vs learning
 
-| Situação | Onde registrar |
+| Situation | Where to register |
 |---|---|
-| Erro corrigido uma vez | `.cursor/learnings/<slug>.md` |
-| Workflow novo (ex.: deploy, migração save) | `.cursor/skills/<nome>/SKILL.md` |
-| Regra pontual que se repete | `learnings/` primeiro → promover para skill |
-| Regra global do estilo | `AGENT.md` ou `Docs/FRAMEWORK.md` |
+| Error fixed once | `.cursor/learnings/<slug>.md` |
+| New workflow (e.g. deploy, save migration) | `.cursor/skills/<name>/SKILL.md` |
+| One-off rule that repeats | `learnings/` first → promote to skill |
+| Global style rule | `AGENT.md` or `Docs/FRAMEWORK.md` |
 
-#### Ordem de leitura (tarefas de código)
+#### Reading order (code tasks)
 
-1. `.cursor/learnings/index.md` (+ arquivos relevantes)
+1. `.cursor/learnings/index.md` (+ relevant files)
 2. `.cursor/skills/roblox-framework`
-3. Skill específica (`add-domain`, `quicknet-handler`, …)
-4. `.cursor/skills/learning-mode` (se corrigindo erro)
+3. Specific skill (`add-domain`, `quicknet-handler`, …)
+4. `.cursor/skills/learning-mode` (when fixing an error)
 5. `AGENT.md` → `Docs/FRAMEWORK.md`
 
 ---
 
-### Modo aprendizado (sempre ativo)
+### Learning mode (always active)
 
-Sempre que **corrigir um erro** (runtime, strict, review do usuário, build falho), o agente deve:
+Whenever you **fix an error** (runtime, strict, user review, failed build), the agent must:
 
-1. Identificar a **causa raiz** — não só o sintoma
-2. Corrigir o código
-3. Documentar em `.cursor/learnings/<slug>.md` usando o template da skill `learning-mode`
-4. Atualizar `.cursor/learnings/index.md` com uma linha na tabela
-5. Se o mesmo padrão aparecer **3 vezes**, promover a regra para a skill ou `AGENT.md` correspondente
+1. Identify the **root cause** — not just the symptom
+2. Fix the code
+3. Document in `.cursor/learnings/<slug>.md` using the `learning-mode` skill template
+4. Update `.cursor/learnings/index.md` with a row in the table
+5. If the same pattern appears **3 times**, promote the rule to the corresponding skill or `AGENT.md`
 
-**Antes de codificar:** ler `index.md` e learnings com tags relacionadas à tarefa.
+**Before coding:** read `index.md` and learnings with tags related to the task.
 
 ---
 
-### Skills do projeto (`.cursor/skills/`)
+### Project skills (`.cursor/skills/`)
 
-Ler o `SKILL.md` antes de aplicar. Estas skills são **específicas deste framework** e têm prioridade em tarefas de código Luau.
+Read `SKILL.md` before applying. These skills are **specific to this framework** and take priority on Luau code tasks.
 
-| Skill | Quando usar |
+| Skill | When to use |
 |---|---|
-| **bootstrap-framework** | `bootstrap framework` — recriar workspace do zero |
-| **roblox-framework** | Qualquer código em `src/` — ler primeiro |
-| **anime-domains-layout** | Onde colocar arquivo / mapa Studio / fluxo match |
-| **arena-maps** | Novo mapa / FlorestMap / Build+Teams / BuildMap |
-| **entity-animations** | Anims entity + AnimationResolveUtils + Signal |
+| **packages-index** | Which package/tool skill to open |
+| **author-hand-programming** | Owner hand style — match voice, no rewrite |
+| **respect-author-hand-style** | Same (short) — editing author-owned modules |
+| **anime-domains-organization** | Where to put a file under `src/` |
+| **rojo-wally-toolchain** | Rojo sync, Wally install, Rokit, sourcemap |
+| **debi-networker** | `.debi` remotes, Fire/SetCallback/On |
+| **janitor** | Cleanup / connections / `:Remove` quirk |
+| **signal** | Custom events (Completed, etc.) |
+| **jecs** | ECS World / components / queries |
+| **dataservicev2** | Player save Get/Set / Paths |
+| **cmdr** | Admin/debug commands |
+| **topbarplus** | Client topbar icons |
+| **simplepath** | Pathfinding agents |
+| **spring** | Scalar spring Step/Set |
+| **display** | Debug pretty-print |
+| **module3d** | ViewportFrame 3D previews |
+| **stickybillboard** | On-screen billboard clamp |
+| **ezvisualz** | UI gradient presets |
+| **formatnumber** | Number formatting / NumberFormater |
+| **vfx-util** | Particle emit helpers |
+| **jabby** | jecs debugger (dev) |
+| **bootstrap-framework** | `bootstrap framework` — recreate workspace from scratch |
+| **roblox-framework** | Any code in `src/` — read first |
+| **anime-domains-layout** | Where to put a file / Studio map / match flow |
+| **arena-maps** | New map / FlorestMap / Build+Teams / BuildMap |
+| **entity-animations** | Entity anims + AnimationResolveUtils + Signal |
 | **jecs-ecs** | Tower, Unit, Primitive, MetaData, World jecs |
-| **add-domain** | Novo sistema/domínio (shop, inventário, units, …) |
-| **luau-style** | Criar ou editar módulos `.luau` |
-| **quicknet-handler** | Legado / DataService — gameplay usa **Networker** tipada |
-| **extend-player-data** | Novos campos no save / `PlayerData.luau` |
-| **learning-mode** | Sempre ativo — documentar correções, ler learnings antes de codificar |
+| **add-domain** | New system/domain (shop, inventory, units, …) |
+| **luau-style** | Create or edit `.luau` modules |
+| **quicknet-handler** | Legacy / DataService — gameplay uses typed **Networker** |
+| **extend-player-data** | New fields in the save / `PlayerData.luau` |
+| **learning-mode** | Always active — document fixes, read learnings before coding |
 
-**Ordem:** `learnings/index.md` → `roblox-framework` → `anime-domains-layout` (se layout) → skill específica → `AGENT.md` / `Docs/FRAMEWORK.md`.
+**Order:** `learnings/index.md` → `author-hand-programming` / `respect-author-hand-style` → `packages-index` (if tooling) → `anime-domains-organization` → package skill → `AGENT.md`.
 
-### Skills built-in do Cursor (`~/.cursor/skills-cursor/`)
+### Built-in Cursor skills (`~/.cursor/skills-cursor/`)
 
-Usar quando a tarefa pedir ou encaixar — ler `SKILL.md` antes de invocar.
+Use when the task asks for or fits them — read `SKILL.md` before invoking.
 
-| Skill | Quando usar |
+| Skill | When to use |
 |---|---|
-| **babysit** | PR com comentários pendentes, CI falhando, conflitos de merge — deixar merge-ready |
-| **review-bugbot** | Usuário pede review de código / `/review-bugbot` — lançar subagent Bugbot |
-| **review-security** | Usuário pede security review das mudanças locais |
-| **split-to-prs** | Dividir branch ou trabalho grande em PRs pequenos e revisáveis |
-| **create-rule** | Criar ou atualizar regras em `.cursor/rules/` ou `AGENT.md` do projeto |
-| **create-skill** | Autorar nova skill personalizada (`SKILL.md`) |
-| **create-hook** | Automatizar eventos do agente via `hooks.json` |
-| **canvas** | Entregável analítico rico (tabelas, timelines, auditorias, dados de MCP) |
+| **babysit** | PR with pending comments, failing CI, merge conflicts — make merge-ready |
+| **review-bugbot** | User asks for code review / `/review-bugbot` — launch Bugbot subagent |
+| **review-security** | User asks for security review of local changes |
+| **split-to-prs** | Split a branch or large work into small reviewable PRs |
+| **create-rule** | Create or update rules in `.cursor/rules/` or the project's `AGENT.md` |
+| **create-skill** | Author a new custom skill (`SKILL.md`) |
+| **create-hook** | Automate agent events via `hooks.json` |
+| **canvas** | Rich analytical deliverable (tables, timelines, audits, MCP data) |
 
-### Usar só se o usuário pedir explicitamente
+### Use only if the user asks explicitly
 
-| Skill | Quando usar |
+| Skill | When to use |
 |---|---|
-| **sdk** | Integração com `@cursor/sdk` / `cursor-sdk` fora do IDE |
-| **automate** | Criar Cursor Automations |
-| **loop** | Prompt recorrente (`/loop`) |
-| **statusline** | Customizar status line do CLI |
-| **update-cursor-settings** | Alterar `settings.json` do editor |
-| **migrate-to-skills** | Migrar regras antigas para formato skill |
+| **sdk** | Integration with `@cursor/sdk` / `cursor-sdk` outside the IDE |
+| **automate** | Create Cursor Automations |
+| **loop** | Recurring prompt (`/loop`) |
+| **statusline** | Customize CLI status line |
+| **update-cursor-settings** | Change editor `settings.json` |
+| **migrate-to-skills** | Migrate old rules to skill format |
 
-### Não usar por padrão em código Luau
+### Do not use by default for Luau code
 
-Não invocar skills de tooling/editor quando a tarefa for implementar features — use as skills do projeto acima.
+Do not invoke tooling/editor skills when the task is implementing features — use the project skills above.
 
-**Ordem de leitura em tarefas de código:** `.cursor/learnings/index.md` → `roblox-framework` → skill específica → `learning-mode` (ao corrigir) → `AGENT.md` → `Docs/FRAMEWORK.md`.
+**Reading order for code tasks:** `.cursor/learnings/index.md` → `roblox-framework` → specific skill → `learning-mode` (when fixing) → `AGENT.md` → `Docs/FRAMEWORK.md`.
 
 ---
 
-## Personagem (R6)
+## Character (R6)
 
-Projetos com este estilo assumem **rig R6** — não R15.
+Projects with this style assume **R6 rig** — not R15.
 
-| Configuração | Valor |
+| Setting | Value |
 |---|---|
-| **Rig** | R6 (`StarterPlayer` → `Character Rig Type` = R6 no Studio) |
-| **Partes** | `Head`, `Torso`, `Left Arm`, `Right Arm`, `Left Leg`, `Right Leg` |
+| **Rig** | R6 (`StarterPlayer` → `Character Rig Type` = R6 in Studio) |
+| **Parts** | `Head`, `Torso`, `Left Arm`, `Right Arm`, `Left Leg`, `Right Leg` |
 | **Humanoid** | `RigType = Enum.HumanoidRigType.R6` |
 
-**Regras para código e assets:**
+**Rules for code and assets:**
 
-- Animações, meshes e acessórios compatíveis com **R6** apenas.
-- Não referenciar partes exclusivas de R15 (`UpperTorso`, `LowerTorso`, `LeftUpperArm`, …).
-- Weld/attach em `Torso` ou membros R6; `HumanoidRootPart` existe, mas membros visíveis seguem o esqueleto R6.
-- NPCs e pets que imitam jogador devem usar o mesmo formato R6.
+- Animations, meshes, and accessories compatible with **R6** only.
+- Do not reference R15-exclusive parts (`UpperTorso`, `LowerTorso`, `LeftUpperArm`, …).
+- Weld/attach to `Torso` or R6 limbs; `HumanoidRootPart` exists, but visible limbs follow the R6 skeleton.
+- NPCs and pets that mimic the player must use the same R6 format.
 
 ---
 
 ## Toolchain
 
-| Ferramenta | Arquivo | Uso |
+| Tool | File | Use |
 |---|---|---|
 | **Rojo** | `default.project.json` | Sync filesystem ↔ Studio |
-| **Rokit** | `rokit.toml` | Gerenciador de CLI (rojo, wally) |
-| **Wally** | `wally.toml` | Dependências Luau → `Packages/` |
-| **Selene** | `selene.toml` | Linter (std Roblox) |
+| **Rokit** | `rokit.toml` | CLI manager (rojo, wally) |
+| **Wally** | `wally.toml` | Luau dependencies → `Packages/` |
+| **Selene** | `selene.toml` | Linter (Roblox std) |
 
 ```bash
 rokit install
 wally install
 rojo serve
-rojo plugin install   # manter plugin Studio na mesma versão do CLI
+rojo plugin install   # keep Studio plugin on the same version as the CLI
 ```
 
 ---
 
-## Stack de pacotes (Wally)
+## Package stack (Wally)
 
-Quando o repositório usa Wally, acessar via `ReplicatedStorage.Packages`. Wrapper local de persistência via `ReplicatedStorage.DataServiceV2` (não usar o pacote cru no código do jogo).
+When the repository uses Wally, access via `ReplicatedStorage.Packages`. Local persistence wrapper via `ReplicatedStorage.DataServiceV2` (do not use the raw package in game code).
 
-| Pacote | Require | Uso |
+| Package | Require | Use |
 |---|---|---|
-| `dataservicev2` | `ReplicatedStorage.DataServiceV2` | Persistência + réplica de dados do jogador |
+| `dataservicev2` | `ReplicatedStorage.DataServiceV2` | Persistence + player data replication |
 | `jecs` | `Packages.jecs` | ECS — `src/Classes` (Tower, Unit, Primitives) |
-| `signal` | `Packages.signal` | Eventos custom (AnimationPlayer Played/Paused) |
-| `janitor` | `Packages.janitor` | Limpar conexões, tweens e callbacks |
-| `simplepath` | `Packages.simplepath` | Path de Units (`Path:Run` / `Stop`) |
-| `cmdr` | servidor + boot cliente | Console admin (dev/ops) |
-| `ezvisualz` | `Packages.ezvisualz` | Gradientes e shine em UI |
-| `spring` | `Packages.spring` | Animações com mola |
-| `display` | `Packages.display` | Helpers de display |
-| `module3d` | `Packages.module3d` | Manipulação 3D |
-| `stickybillboard` | `Packages.stickybillboard` | Billboards ancorados |
-| `formatnumber` | `Packages.formatnumber` ou `Utils.FormatNumber` | Formatação numérica |
-| `vfx-util` | `Packages.vfx-util` | Utilitários de VFX |
-| `topbarplus` | `Packages.topbarplus` | Botões na topbar do cliente |
+| `signal` | `Packages.signal` | Custom events (AnimationPlayer Played/Paused) |
+| `janitor` | `Packages.janitor` | Clean up connections, tweens, and callbacks |
+| `simplepath` | `Packages.simplepath` | Unit pathing (`Path:Run` / `Stop`) |
+| `cmdr` | server + client boot | Admin console (dev/ops) |
+| `ezvisualz` | `Packages.ezvisualz` | Gradients and shine in UI |
+| `spring` | `Packages.spring` | Spring animations |
+| `display` | `Packages.display` | Display helpers |
+| `module3d` | `Packages.module3d` | 3D manipulation |
+| `stickybillboard` | `Packages.stickybillboard` | Anchored billboards |
+| `formatnumber` | `Packages.formatnumber` or `Utils.FormatNumber` | Number formatting |
+| `vfx-util` | `Packages.vfx-util` | VFX utilities |
+| `topbarplus` | `Packages.topbarplus` | Client topbar buttons |
 
 ```luau
 --!strict
@@ -264,95 +316,95 @@ const Signal = require(ReplicatedStorage.Packages.signal)
 const DataServiceV2 = require(ReplicatedStorage.DataServiceV2)
 ```
 
-> **Anime Domains:** gameplay net = Networker tipada (`src/Networker/`, estilo leif + tipos Luau + `@native` nos hot paths); combate = jecs; anim events = Signal. QuickNet não é dependência de gameplay (pode existir só dentro do DataServiceV2). Conferir `wally.toml`.
+> **Anime Domains:** gameplay net = typed Networker (`src/Networker/`, leif-style + Luau types + `@native` on hot paths); combat = jecs; anim events = Signal. QuickNet is not a gameplay dependency (may exist only inside DataServiceV2). Check `wally.toml`.
 
 ---
 
-## Estrutura do projeto
+## Project structure
 
-### Regra importante: filesystem != árvore final no Studio
+### Important rule: filesystem != final Studio tree
 
-A organização nova deste repositório é **flat em `src/`**. O agente deve decidir onde salvar arquivos olhando primeiro para o **filesystem**, e só depois considerar onde o `default.project.json` monta isso no DataModel do Roblox.
+The new organization of this repository is **flat under `src/`**. The agent must decide where to save files by looking first at the **filesystem**, and only then consider where `default.project.json` mounts that into the Roblox DataModel.
 
 ```
 src/
-├── Boot/                           # Entradas .server/.client
-├── Classes/                        # ECS / árvore de components / metadata
+├── Boot/                           # .server/.client entry points
+├── Classes/                        # ECS / component tree / metadata
 ├── Constants/
-│   ├── Datas/                      # Catálogos de gameplay + PlayerData
-│   └── PrimaryDatas/               # Ícones, raridades, itens globais
-├── Controllers/                    # Placeholder para LocalScripts/controllers
-├── Handlers/                       # Placeholder para scripts finos de integração
-├── Modules/                        # Infra compartilhada / cross-cutting
-├── Networker/                      # Networker tipada (estilo leif) — um remote por Service
-├── Services/                       # Serviços de domínio
-├── Utils/                          # Helpers puros
-└── Workers/                        # Wrappers/infra compartilhada (ex.: DataServiceV2)
+│   ├── Datas/                      # Gameplay catalogs + PlayerData
+│   └── PrimaryDatas/               # Icons, rarities, global items
+├── Controllers/                    # Placeholder for LocalScripts/controllers
+├── Handlers/                       # Placeholder for thin integration scripts
+├── Modules/                        # Shared / cross-cutting infra
+├── Networker/                      # Typed Networker (leif-style) — one remote per Service
+├── Services/                       # Domain services
+├── Utils/                          # Pure helpers
+└── Workers/                        # Shared wrappers/infra (e.g. DataServiceV2)
 ```
 
-### Mapeamento atual para o Studio (`default.project.json`)
+### Current Studio mapping (`default.project.json`)
 
-| Filesystem | Runtime no Studio | Papel |
+| Filesystem | Studio runtime | Role |
 |---|---|---|
-| `src/Boot/Server.server.luau` | `ServerScriptService.Boot.Server` | Boot do servidor |
-| `src/Boot/Client.client.luau` | `StarterPlayer.StarterPlayerScripts.Boot.Client` | Boot do cliente |
-| `src/Services/` | `ReplicatedStorage.Shareds.Services` | Domínios e services compartilhados |
-| `src/Constants/` | `ReplicatedStorage.Shareds.Constants` | Dados estáticos |
+| `src/Boot/Server.server.luau` | `ServerScriptService.Boot.Server` | Server boot |
+| `src/Boot/Client.client.luau` | `StarterPlayer.StarterPlayerScripts.Boot.Client` | Client boot |
+| `src/Services/` | `ReplicatedStorage.Shareds.Services` | Domains and shared services |
+| `src/Constants/` | `ReplicatedStorage.Shareds.Constants` | Static data |
 | `src/Classes/` | `ReplicatedStorage.Shareds.Classes` | jecs, primitives, metadata |
-| `src/Modules/` | `ReplicatedStorage.Shareds.Modules` | Infra compartilhada |
-| `src/Networker/` | `ReplicatedStorage.Shareds.Networker` | Networker server/client tipada |
-| `src/Workers/` | `ReplicatedStorage.Shareds.Workers` | Wrappers como `DataServiceV2` |
-| `src/Utils/` | `ReplicatedStorage.Shareds.Utils` | Helpers puros |
+| `src/Modules/` | `ReplicatedStorage.Shareds.Modules` | Shared infra |
+| `src/Networker/` | `ReplicatedStorage.Shareds.Networker` | Typed server/client Networker |
+| `src/Workers/` | `ReplicatedStorage.Shareds.Workers` | Wrappers such as `DataServiceV2` |
+| `src/Utils/` | `ReplicatedStorage.Shareds.Utils` | Pure helpers |
 
-### Como decidir onde editar
+### How to decide where to edit
 
-| Camada | Path no repo | Path em runtime | Responsabilidade |
+| Layer | Repo path | Runtime path | Responsibility |
 |---|---|---|---|
-| **Boot** | `src/Boot/` | `ServerScriptService.Boot` / `StarterPlayerScripts.Boot` | Ponto de entrada único; chama `:Init()` / `:init()` |
-| **Services** | `src/Services/` | `ReplicatedStorage.Shareds.Services` | Autoridade e lógica de domínio |
-| **Handlers** | `src/Handlers/` | hoje ainda não montado | Scripts finos que conectam plataforma/rede → Service |
-| **Controllers** | `src/Controllers/` | hoje ainda não montado | Infra local e orquestração de cliente |
-| **Classes** | `src/Classes/` | `ReplicatedStorage.Shareds.Classes` | jecs: components, metadata, helpers de entity |
-| **Constants** | `src/Constants/` | `ReplicatedStorage.Shareds.Constants` | Catálogos, save template, dados estáticos |
-| **Modules** | `src/Modules/` | `ReplicatedStorage.Shareds.Modules` | Infra UI/UX cross-cutting |
-| **Utils** | `src/Utils/` | `ReplicatedStorage.Shareds.Utils` | Funções puras genéricas |
-| **Workers** | `src/Workers/` | `ReplicatedStorage.Shareds.Workers` | Wrappers e infraestrutura compartilhada |
+| **Boot** | `src/Boot/` | `ServerScriptService.Boot` / `StarterPlayerScripts.Boot` | Single entry point; calls `:Init()` / `:init()` |
+| **Services** | `src/Services/` | `ReplicatedStorage.Shareds.Services` | Authority and domain logic |
+| **Handlers** | `src/Handlers/` | not mounted yet | Thin scripts that connect platform/network → Service |
+| **Controllers** | `src/Controllers/` | not mounted yet | Local infra and client orchestration |
+| **Classes** | `src/Classes/` | `ReplicatedStorage.Shareds.Classes` | jecs: components, metadata, entity helpers |
+| **Constants** | `src/Constants/` | `ReplicatedStorage.Shareds.Constants` | Catalogs, save template, static data |
+| **Modules** | `src/Modules/` | `ReplicatedStorage.Shareds.Modules` | Cross-cutting UI/UX infra |
+| **Utils** | `src/Utils/` | `ReplicatedStorage.Shareds.Utils` | Generic pure functions |
+| **Workers** | `src/Workers/` | `ReplicatedStorage.Shareds.Workers` | Wrappers and shared infrastructure |
 
-**Regra do agente:** ao falar de caminho para criação/edição, preferir `src/...`. Ao mostrar `require`, usar o caminho **runtime** real em `ReplicatedStorage.Shareds...`.
+**Agent rule:** when referring to a path for create/edit, prefer `src/...`. When showing `require`, use the real **runtime** path under `ReplicatedStorage.Shareds...`.
 
 ---
 
-## Onde colocar código — Modules vs Services vs PrimaryDatas
+## Where to put code — Modules vs Services vs PrimaryDatas
 
-Regra central na organização nova: **domínio vai em `src/Services/`**; **dados gerais do jogo em `src/Constants/PrimaryDatas/`**; **`src/Modules/` só para infra compartilhada**. Em runtime isso continua aparecendo sob `ReplicatedStorage.Shareds.*`.
+Central rule in the new organization: **domain goes in `src/Services/`**; **general game data in `src/Constants/PrimaryDatas/`**; **`src/Modules/` only for shared infra**. At runtime this still appears under `ReplicatedStorage.Shareds.*`.
 
-### `src/Modules/` — infra compartilhada
+### `src/Modules/` — shared infra
 
-Somente facades cross-cutting de UI/UX/feedback usados por **vários** domínios:
+Only cross-cutting UI/UX/feedback facades used by **multiple** domains:
 
-| Módulo | Uso |
+| Module | Use |
 |---|---|
-| **`GuiModule`** | Hover, abertura/fechamento de interfaces centrais |
-| **`NotificationModule`** | Toasts e fila de notificações |
-| **`TransitionModule`** | Transição fullscreen em grid (In/Out) |
+| **`GuiModule`** | Hover, open/close of central interfaces |
+| **`NotificationModule`** | Toasts and notification queue |
+| **`TransitionModule`** | Fullscreen grid transition (In/Out) |
 | **`SoundModule`** | `playInterface`, `playClick`, `playGame`, `playMovement` |
-| **`NumberModule`** | Formatação + animação numérica (`animateNumber`, `playDropEffect`) |
-| **`PopupModule`** | Popups físicos e de moeda |
-| **`EzVisualzGradientModule`** | Shine/gradient em `GuiObject` |
-| **`CameraShakeModule`** | Shake de câmera reutilizável |
+| **`NumberModule`** | Number formatting + animation (`animateNumber`, `playDropEffect`) |
+| **`PopupModule`** | Physical and currency popups |
+| **`EzVisualzGradientModule`** | Shine/gradient on `GuiObject` |
+| **`CameraShakeModule`** | Reusable camera shake |
 
-**Não** colocar aqui: `UnitsModule`, `GachaModule`, `ComboCombatModule`, `PotionHudModule`, deny codes, settings de serviço, etc.
+**Do not** put here: `UnitsModule`, `GachaModule`, `ComboCombatModule`, `PotionHudModule`, deny codes, service settings, etc.
 
-### `src/Services/<Domínio>/` — tudo do domínio
+### `src/Services/<Domínio>/` — everything for the domain
 
-Cada pasta de domínio (`Units`, `Click`, `Gacha`, `Potion`, `Enemy`, `Rebirth`, `Island`, `Settings`, `Movement`, …) agrupa:
+Each domain folder (`Units`, `Click`, `Gacha`, `Potion`, `Enemy`, `Rebirth`, `Island`, `Settings`, `Movement`, …) groups:
 
-| Tipo | Exemplos |
+| Type | Examples |
 |---|---|
-| **Singleton cliente** | `UnitsServiceClient`, `ClickServiceClient`, `GachaServiceClient` |
+| **Client singleton** | `UnitsServiceClient`, `ClickServiceClient`, `GachaServiceClient` |
 | **Utils** | `UnitFollowerServiceUtils`, `ClickPowerUtils`, `EnemyServiceUtils` |
-| **Module de domínio** | `UnitsModule`, `GachaModule`, `ComboCombatModule`, `PotionHudModule` |
-| **Constantes do serviço** | `PotionDenyCodes`, `UnitsDenyCodes`, `Click.luau`, `Combo.luau`, `Gacha.luau`, `Rebirth.luau`, `Multipliers.luau` |
+| **Domain module** | `UnitsModule`, `GachaModule`, `ComboCombatModule`, `PotionHudModule` |
+| **Service constants** | `PotionDenyCodes`, `UnitsDenyCodes`, `Click.luau`, `Combo.luau`, `Gacha.luau`, `Rebirth.luau`, `Multipliers.luau` |
 
 ```luau
 const UnitsModule = require(ReplicatedStorage.Shareds.Services.Units.UnitsModule)
@@ -360,61 +412,61 @@ const PotionDenyCodes = require(ReplicatedStorage.Shareds.Services.Potion.Potion
 const ComboSettings = require(ReplicatedStorage.Shareds.Services.Click.Combo)
 ```
 
-### `src/Constants/PrimaryDatas/` — dados gerais do jogo
+### `src/Constants/PrimaryDatas/` — general game data
 
-Somente catálogos e assets **transversais**, sem acoplamento a um service:
+Only **cross-cutting** catalogs and assets, with no coupling to a single service:
 
-| Arquivo | Uso |
+| File | Use |
 |---|---|
-| **`Icons`** | Asset IDs de ícones (moedas, ilhas, potions, HUD, …) |
-| **`Raritys`** | Definições de raridade (cor, nome, ordem) |
-| **`Items`** | Catálogo global de itens (referencia Icons + Raritys) |
-| **`Notifications`** | Duração, gradientes e limites das notificações |
-| **`_RobuxIcon`**, **`_PremiumIcon`**, **`_VerifiedIcon`** | Ícones de badge reutilizáveis |
+| **`Icons`** | Icon asset IDs (coins, islands, potions, HUD, …) |
+| **`Raritys`** | Rarity definitions (color, name, order) |
+| **`Items`** | Global item catalog (references Icons + Raritys) |
+| **`Notifications`** | Notification duration, gradients, and limits |
+| **`_RobuxIcon`**, **`_PremiumIcon`**, **`_VerifiedIcon`** | Reusable badge icons |
 
-Pastas de conteúdo/template (`Enemys/EggHead`, `Units/Overrides`) também ficam aqui.
+Content/template folders (`Enemys/EggHead`, `Units/Overrides`) also live here.
 
-**Não** colocar: deny codes, tuning de combo/click, config de gacha/rebirth, `Multipliers`, `Potions` (settings), `_EnemyTypes`, etc.
+**Do not** put: deny codes, combo/click tuning, gacha/rebirth config, `Multipliers`, `Potions` (settings), `_EnemyTypes`, etc.
 
-### `src/Constants/Datas/` — catálogos de gameplay
+### `src/Constants/Datas/` — gameplay catalogs
 
-Listas e definições que compõem o jogo: `Units`, `Gachas`, `Enemys`, `Islands`, `Ranks`, `PlayerData`. Podem `require` `PrimaryDatas` (Icons, Raritys) e `Services` (ex.: `Services.Enemy._EnemyTypes`) quando necessário.
+Lists and definitions that make up the game: `Units`, `Gachas`, `Enemys`, `Islands`, `Ranks`, `PlayerData`. May `require` `PrimaryDatas` (Icons, Raritys) and `Services` (e.g. `Services.Enemy._EnemyTypes`) when needed.
 
-### Fluxo de decisão (novo código)
+### Decision flow (new code)
 
-1. Genérico e puro (math, lerp, format)? → **`src/Utils/`**
-2. UI/feedback usado por vários sistemas? → **`src/Modules/`**
-3. Pertence a um domínio (unit, click, potion, enemy)? → **`src/Services/<Domínio>/`**
-4. Ícone, raridade ou item global? → **`src/Constants/PrimaryDatas/`**
-5. Catálogo/lista de entidades do jogo? → **`src/Constants/Datas/`**
+1. Generic and pure (math, lerp, format)? → **`src/Utils/`**
+2. UI/feedback used by multiple systems? → **`src/Modules/`**
+3. Belongs to a domain (unit, click, potion, enemy)? → **`src/Services/<Domínio>/`**
+4. Global icon, rarity, or item? → **`src/Constants/PrimaryDatas/`**
+5. Catalog/list of game entities? → **`src/Constants/Datas/`**
 
 ---
 
-## Utils e Modules — reutilizar antes de reinventar
+## Utils and Modules — reuse before reinventing
 
-**Regra do agente:** antes de implementar formatação numérica, interpolação, clamp/map, tempo, efeitos de UI, sons, popups, transições ou qualquer helper repetível, **buscar e usar** os utilitários já existentes no projeto. Não duplicar lógica inline nem recriar wrappers se já houver equivalente.
+**Agent rule:** before implementing number formatting, interpolation, clamp/map, time, UI effects, sounds, popups, transitions, or any repeatable helper, **search for and use** utilities already in the project. Do not duplicate logic inline or recreate wrappers if an equivalent already exists.
 
-### Workflow obrigatório
+### Mandatory workflow
 
-1. **Buscar** — `grep` / busca semântica em `src/Utils/`, `src/Modules/`, `src/Services/<Domínio>/`, `src/Workers/` e `*Utils.luau`.
-2. **Preferir** — util de domínio (`ClickPowerUtils`) ou facade de infra (`NumberModule`, `SoundModule`).
-3. **Estender** — se faltar uma função: genérica → `Utils/`; de domínio → `Services/<Domínio>/`.
-4. **Criar novo** — somente quando não existir equivalente; local correto:
-   - genérico e sem estado → `src/Utils/`
-   - infra UI/UX cross-cutting → `src/Modules/`
-   - lógica, UI ou constante de domínio → `src/Services/<Domínio>/`
-   - ícone/raridade/item global → `src/Constants/PrimaryDatas/`
-   - catálogo de entidades → `src/Constants/Datas/`
+1. **Search** — `grep` / semantic search in `src/Utils/`, `src/Modules/`, `src/Services/<Domínio>/`, `src/Workers/`, and `*Utils.luau`.
+2. **Prefer** — domain util (`ClickPowerUtils`) or infra facade (`NumberModule`, `SoundModule`).
+3. **Extend** — if a function is missing: generic → `Utils/`; domain → `Services/<Domínio>/`.
+4. **Create new** — only when no equivalent exists; correct location:
+   - generic and stateless → `src/Utils/`
+   - cross-cutting UI/UX infra → `src/Modules/`
+   - domain logic, UI, or constant → `src/Services/<Domínio>/`
+   - global icon/rarity/item → `src/Constants/PrimaryDatas/`
+   - entity catalog → `src/Constants/Datas/`
 
-### Catálogo — `src/Utils/` (puros)
+### Catalog — `src/Utils/` (pure)
 
-| Módulo | Require | Uso |
+| Module | Require | Use |
 |---|---|---|
-| **`Math`** | `Shareds.Utils.Math` | `clamp`, `map`, `wrap`, `round`, `sign`, `snap`, `pingPong`, distâncias 2D/3D, ângulos (`deltaAngleDegrees`, `normalizeAngleDegrees`), `randomRange`, `average`/`sum`/`min`/`max` |
+| **`Math`** | `Shareds.Utils.Math` | `clamp`, `map`, `wrap`, `round`, `sign`, `snap`, `pingPong`, 2D/3D distances, angles (`deltaAngleDegrees`, `normalizeAngleDegrees`), `randomRange`, `average`/`sum`/`min`/`max` |
 | **`Lerp`** | `Shareds.Utils.Lerp` | `scalar`, `vector2/3`, `color3`, `cframe`, `udim2`, `angleDegrees`, `inverse`, easing helpers |
 | **`FormatNumber`** | `Shareds.Utils.FormatNumber` | `formatCompact`, `formatInteger`, `formatExact`, `formatPercent`, `formatDelta`, `formatTime`, `formatCooldown`, `formatSigned` |
-| **`Quadtree`** | `Shareds.Utils.Quadtree` | Consultas espaciais 2D (inserção, query por bounds/ponto) |
-| **`UIAnimator`** | `Shareds.Utils.UIAnimator` | Hover/press presets, `Show`/`Hide` de painéis por região, ripple, blur de interface |
+| **`Quadtree`** | `Shareds.Utils.Quadtree` | 2D spatial queries (insert, query by bounds/point) |
+| **`UIAnimator`** | `Shareds.Utils.UIAnimator` | Hover/press presets, region panel `Show`/`Hide`, ripple, interface blur |
 
 ```luau
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -423,7 +475,7 @@ const MathUtil = require(ReplicatedStorage.Shareds.Utils.Math)
 const Lerp = require(ReplicatedStorage.Shareds.Utils.Lerp)
 const FormatNumber = require(ReplicatedStorage.Shareds.Utils.FormatNumber)
 
--- Preferir NumberModule quando precisar de animação + formatação juntas
+-- Prefer NumberModule when you need animation + formatting together
 const NumberModule = require(ReplicatedStorage.Shareds.Modules.NumberModule)
 
 local alpha = MathUtil.clamp(elapsed / duration, 0, 1)
@@ -431,13 +483,13 @@ local display = Lerp.scalar(from, to, alpha)
 label.Text = FormatNumber.formatCompact(display)
 ```
 
-### Catálogo — `src/Modules/` (infra compartilhada)
+### Catalog — `src/Modules/` (shared infra)
 
-Ver tabela completa em [Onde colocar código](#onde-colocar-código--modules-vs-services-vs-primarydatas). Resumo: `GuiModule`, `NotificationModule`, `TransitionModule`, `SoundModule`, `NumberModule`, `PopupModule`, `EzVisualzGradientModule`, `CameraShakeModule`.
+See the full table in [Where to put code](#where-to-put-code--modules-vs-services-vs-primarydatas). Summary: `GuiModule`, `NotificationModule`, `TransitionModule`, `SoundModule`, `NumberModule`, `PopupModule`, `EzVisualzGradientModule`, `CameraShakeModule`.
 
-### Catálogo — `src/Services/<Domínio>/` (exemplos)
+### Catalog — `src/Services/<Domínio>/` (examples)
 
-| Domínio | Módulos / constantes |
+| Domain | Modules / constants |
 |---|---|
 | **Units** | `UnitsModule`, `UnitCardModule`, `UnitsDenyCodes`, `UnitFollowerServiceUtils` |
 | **Click** | `ComboCombatModule`, `ClickBoostModule`, `Click.luau`, `Combo.luau`, `ClickBoostDenyCodes` |
@@ -448,43 +500,43 @@ Ver tabela completa em [Onde colocar código](#onde-colocar-código--modules-vs-
 | **Settings** | `MusicControllerModule`, `SoundSettings`, `InterfaceMusic` |
 | **Multiplier** | `Multipliers.luau`, `MultiplierVisualModule`, `MultiplierUtils` |
 
-### Catálogo — `*Utils` por domínio
+### Catalog — domain `*Utils`
 
-| Módulo | Uso |
+| Module | Use |
 |---|---|
-| **`ClickPowerUtils`** | Power por click, rebirth, lucky factor, dano derivado |
-| **`SoundVolumeUtils`** | Percentual de settings → volume de `Sound` |
-| **`IslandServiceUtils`** | Lógica compartilhada de ilhas |
+| **`ClickPowerUtils`** | Power per click, rebirth, lucky factor, derived damage |
+| **`SoundVolumeUtils`** | Settings percentage → `Sound` volume |
+| **`IslandServiceUtils`** | Shared island logic |
 
 ### Anti-patterns (utils)
 
-- `string.format` / concatenação manual para moedas grandes — usar `FormatNumber` ou `NumberModule`
-- `math.clamp` / lerp inline repetido — usar `Math` / `Lerp`
-- `TweenService` + lógica de contador numérico do zero — usar `NumberModule.animateNumber`
-- `Instance.new("Sound")` + clone manual — usar `SoundModule`
-- Highlight/popup de moeda customizado — verificar `PopupModule` / `Services.Currency.CurrencyVisualModule` primeiro
-- Tweens de hover/press em botões — preferir `UIAnimator:BindInteractive` ou `GuiModule`
+- `string.format` / manual concatenation for large currencies — use `FormatNumber` or `NumberModule`
+- Repeated inline `math.clamp` / lerp — use `Math` / `Lerp`
+- `TweenService` + numeric counter logic from scratch — use `NumberModule.animateNumber`
+- `Instance.new("Sound")` + manual clone — use `SoundModule`
+- Custom currency highlight/popup — check `PopupModule` / `Services.Currency.CurrencyVisualModule` first
+- Hover/press tweens on buttons — prefer `UIAnimator:BindInteractive` or `GuiModule`
 
 ---
 
-## Cabeçalho e otimização de módulo
+## Module header and optimization
 
-### Padrão — todo módulo
+### Pattern — every module
 
 ```luau
 --!strict
 ```
 
-`--!strict` é **obrigatório** em todo ModuleScript. Tipar parâmetros, retornos e `self`; preferir tipos primitivos explícitos (`number`, `string`, `boolean`) e `export type` em APIs públicas.
+`--!strict` is **required** on every ModuleScript. Type parameters, returns, and `self`; prefer explicit primitive types (`number`, `string`, `boolean`) and `export type` on public APIs.
 
-### `@native` e `--!native` — somente hot paths
+### `@native` and `--!native` — hot paths only
 
-Duas formas de pedir compilação nativa (C++) em vez de bytecode:
+Two ways to request native (C++) compilation instead of bytecode:
 
-| Forma | Escopo | Exemplo |
+| Form | Scope | Example |
 |---|---|---|
-| `@native` | Uma função | `@native local function encode(buff: buffer): number` |
-| `--!native` | Arquivo inteiro | Segunda linha do módulo, após `--!strict` |
+| `@native` | One function | `@native local function encode(buff: buffer): number` |
+| `--!native` | Entire file | Second line of the module, after `--!strict` |
 
 ```luau
 --!strict
@@ -494,29 +546,29 @@ Duas formas de pedir compilação nativa (C++) em vez de bytecode:
 end
 ```
 
-**Usar quando:** combate, serialização/rede, pathfinding, simulação, loops em `Heartbeat`/`RenderStepped` com centenas+ de entidades — e **só após evidência** de gargalo.
+**Use when:** combat, serialization/networking, pathfinding, simulation, loops on `Heartbeat`/`RenderStepped` with hundreds+ of entities — and **only after evidence** of a bottleneck.
 
-**Não usar em:** `Constants/`, UI, boots, handlers, config, deny codes, `Icons`, debug, código que roda uma vez.
+**Do not use in:** `Constants/`, UI, boots, handlers, config, deny codes, `Icons`, debug, code that runs once.
 
-Preferir `@native` em **funções isoladas** antes de `--!native` no arquivo inteiro — escopo menor, debug mais fácil.
+Prefer `@native` on **isolated functions** before `--!native` on the whole file — smaller scope, easier debugging.
 
 ---
 
-## `const` — bindings imutáveis
+## `const` — immutable bindings
 
-Luau suporta `const` para variáveis locais que **não podem ser reatribuídas**. Use em todo valor que não muda após a inicialização.
+Luau supports `const` for local variables that **cannot be reassigned**. Use it for every value that does not change after initialization.
 
-### Quando usar `const`
+### When to use `const`
 
 | Use `const` | Use `local` |
 |---|---|
-| Services cacheados no topo | Estado mutável (`self._initialized`) |
-| Requires de módulos | Contadores, buffers reutilizáveis |
-| Constantes numéricas / strings | Variáveis de loop |
-| Referências a `Vector3.zero`, etc. | Campos que mudam em runtime |
-| Configuração lida uma vez | Dados do jogador |
+| Services cached at the top | Mutable state (`self._initialized`) |
+| Module requires | Counters, reusable buffers |
+| Numeric / string constants | Loop variables |
+| References to `Vector3.zero`, etc. | Fields that change at runtime |
+| Configuration read once | Player data |
 
-### Sintaxe
+### Syntax
 
 ```luau
 --!strict
@@ -530,7 +582,7 @@ const DEFAULT_SPAWN: Vector3 = Vector3.new(0, 5, 0)
 const EMPTY_ARRAY: { string } = {}
 ```
 
-`const` suporta anotação de tipo, multi-atribuição e declaração de função:
+`const` supports type annotation, multi-assignment, and function declaration:
 
 ```luau
 const a: number, b: number = 1, 2
@@ -542,16 +594,16 @@ end
 
 ### `local function` vs `const function`
 
-Helpers do módulo podem ser declarados das duas formas. **Preferir `const function`** quando a função é fixa (não será reatribuída) — a maioria dos helpers internos.
+Module helpers can be declared either way. **Prefer `const function`** when the function is fixed (will not be reassigned) — most internal helpers.
 
-| Preferir | Quando |
+| Prefer | When |
 |---|---|
-| **`const function`** | Helper estável: validação, clamp, builders, sync de mapa, lookups |
-| **`local function`** | Só se o binding for trocado depois (`fn = outra`), ou padrão legado já no arquivo |
-| **`function Modulo.Metodo`** | Métodos de singleton / API pública do service |
+| **`const function`** | Stable helper: validation, clamp, builders, map sync, lookups |
+| **`local function`** | Only if the binding is swapped later (`fn = other`), or legacy pattern already in the file |
+| **`function Module.Method`** | Singleton methods / public service API |
 
 ```luau
--- Preferido — helper que não muda
+-- Preferred — helper that does not change
 const function clampLevel(level: number): number
 	return math.max(1, level)
 end
@@ -560,26 +612,26 @@ const function getTeamsRoot(): Folder?
 	-- ...
 end
 
--- OK — binding mutável (raro)
+-- OK — mutable binding (rare)
 local onTick = function(_dt: number) end
 onTick = function(dt: number)
-	-- swap em runtime
+	-- runtime swap
 end
 
--- Métodos do service — não são const function no topo
+-- Service methods — not const function at the top
 function GameplayService.StartMatch(self: GameplayService, props: GameplayPropeties)
 	-- ...
 end
 ```
 
-**Regra do agente:** ao criar helper novo no módulo, usar `const function` por padrão. Usar `local function` só com motivo (reatribuição ou consistência pontual com bloco já `local`).
+**Agent rule:** when creating a new helper in the module, use `const function` by default. Use `local function` only with a reason (reassignment or local consistency with an existing `local` block).
 
-### Binding vs valor — `const` vs `table.freeze`
+### Binding vs value — `const` vs `table.freeze`
 
-| Mecanismo | O que protege |
+| Mechanism | What it protects |
 |---|---|
-| `const` | O **binding** — não pode reatribuir a variável |
-| `table.freeze` | O **conteúdo** da tabela — não pode adicionar/remover/mutar chaves |
+| `const` | The **binding** — cannot reassign the variable |
+| `table.freeze` | The **contents** of the table — cannot add/remove/mutate keys |
 
 ```luau
 export type CacheKey = string
@@ -587,8 +639,8 @@ export type CacheValue = number
 export type NumberCache = { [CacheKey]: CacheValue }
 
 const cache: NumberCache = {}
-cache["key"] = 1 -- OK: conteúdo mutável
--- cache = {}    -- ERRO: reatribuição proibida
+cache["key"] = 1 -- OK: mutable contents
+-- cache = {}    -- ERROR: reassignment forbidden
 
 export type DenyCodeName = string
 export type DenyCode = number
@@ -598,19 +650,19 @@ const DENY_CODES: DenyCodeMap = table.freeze({
 	Ok = 0,
 	NotFound = 2,
 })
--- DENY_CODES.Ok = 1  -- ERRO: tabela congelada
+-- DENY_CODES.Ok = 1  -- ERROR: frozen table
 ```
 
-**Regra:** `const` é o padrão para tudo que não será reatribuído. **`table.freeze` só quando necessário** — não usar em excesso.
+**Rule:** `const` is the default for everything that will not be reassigned. **`table.freeze` only when necessary** — do not overuse it.
 
-| Use `table.freeze` | Não precisa de `table.freeze` |
+| Use `table.freeze` | No need for `table.freeze` |
 |---|---|
-| Template de save (`PlayerData`) passado ao DataService | `Icons`, catálogos read-only com `const` no binding |
-| Deny codes exportados/consumidos por vários módulos | Requires cacheados no topo do módulo |
-| Retorno de API pública que **não pode** ser mutado pelo caller | Tabelas internas de singleton que ninguém exporta |
-| `Networking/Definitions.luau` (registro de canais) | Valores primitivos (`const MAX = 10`) |
+| Save template (`PlayerData`) passed to DataService | `Icons`, read-only catalogs with `const` on the binding |
+| Deny codes exported/consumed by multiple modules | Requires cached at the top of the module |
+| Public API return that **must not** be mutated by the caller | Internal singleton tables that nobody exports |
+| `Networking/Definitions.luau` (channel registry) | Primitive values (`const MAX = 10`) |
 
-Para primitivos e instâncias Roblox imutáveis, `const` basta:
+For primitives and immutable Roblox instances, `const` is enough:
 
 ```luau
 const MAX_HEALTH: number = 100
@@ -619,10 +671,10 @@ const IDENTITY = CFrame.identity
 const EMPTY: { string } = {}
 ```
 
-### Onde aplicar no projeto
+### Where to apply in the project
 
 ```luau
--- Constants/ — const no binding; tipos semânticos; freeze só se compartilhado
+-- Constants/ — const on the binding; semantic types; freeze only if shared
 export type IconKey = string
 export type IconId = string
 export type IconsMap = { [IconKey]: IconId }
@@ -631,7 +683,7 @@ const Icons: IconsMap = {
 	Coins = "rbxassetid://123",
 }
 
--- Template de save — freeze necessário (referência compartilhada, não pode mutar)
+-- Save template — freeze required (shared reference, must not mutate)
 export type CoinAmount = number
 export type CurrencyBalances = { Coins: CoinAmount }
 
@@ -639,30 +691,30 @@ const PlayerDataTemplate = table.freeze({
 	Currencies = table.freeze({ Coins = 0 }),
 })
 
--- Services — const para requires; sem freeze
+-- Services — const for requires; no freeze
 const DataServiceV2 = require(ReplicatedStorage.DataServiceV2)
 ```
 
-### Regra do agente
+### Agent rule
 
-> Prefira `const` sobre `local` sempre que possível. Preferir `const function` para helpers estáveis do módulo (em vez de `local function`). Use `table.freeze` **apenas** quando a tabela é compartilhada e precisa ser protegida contra mutação acidental — não congele por padrão em todo `Constants/`.
+> Prefer `const` over `local` whenever possible. Prefer `const function` for stable module helpers (instead of `local function`). Use `table.freeze` **only** when the table is shared and needs protection against accidental mutation — do not freeze by default across all of `Constants/`.
 
 ---
 
-## Tipagem Luau
+## Luau typing
 
-### Tipos semânticos — nunca genéricos soltos
+### Semantic types — never loose generics
 
-**Proibido** usar mapas/listas com primitivos genéricos quando o significado do dado é conhecido:
+**Forbidden** to use maps/lists with generic primitives when the meaning of the data is known:
 
 ```luau
--- Ruim
+-- Bad
 const Icons: { [string]: string } = {}
 local cache: { [string]: number } = {}
 local players: { [number]: PlayerData } = {}
 ```
 
-**Obrigatório** nomear chave, valor e o mapa com `export type`:
+**Required** to name key, value, and the map with `export type`:
 
 ```luau
 --!strict
@@ -683,21 +735,21 @@ const Icons: IconsMap = {
 }
 ```
 
-| Papel | Convenção | Exemplo |
+| Role | Convention | Example |
 |---|---|---|
-| Chave de mapa | `<Domínio>Key` | `IconKey`, `UnitKey`, `CacheKey` |
-| Valor primitivo | `<Domínio><Tipo>` | `IconId`, `CoinAmount`, `DenyCode` |
-| Mapa/dict | `<Domínio>Map` | `IconsMap`, `DenyCodeMap`, `PlayerSaveMap` |
-| Struct de save | PascalCase descritivo | `CurrencyBalances`, `UnitInstanceData` |
-| Tipos de UI Studio | `_DomainTypes.luau` | `_UnitCardRefs` |
+| Map key | `<Domínio>Key` | `IconKey`, `UnitKey`, `CacheKey` |
+| Primitive value | `<Domínio><Type>` | `IconId`, `CoinAmount`, `DenyCode` |
+| Map/dict | `<Domínio>Map` | `IconsMap`, `DenyCodeMap`, `PlayerSaveMap` |
+| Save struct | Descriptive PascalCase | `CurrencyBalances`, `UnitInstanceData` |
+| Studio UI types | `_DomainTypes.luau` | `_UnitCardRefs` |
 
-Colocar tipos no módulo do domínio (`Icons.luau`, `PlayerData.luau`) ou em `Shareds/Types/` quando forem transversais. Reutilizar via `require` — não duplicar alias.
+Place types in the domain module (`Icons.luau`, `PlayerData.luau`) or in `Shareds/Types/` when they are cross-cutting. Reuse via `require` — do not duplicate aliases.
 
-Primitivos soltos (`number`, `string`) são OK **só** em parâmetros locais óbvios ou campos já nomeados dentro de um `export type` struct.
+Loose primitives (`number`, `string`) are OK **only** in obvious local parameters or already-named fields inside an `export type` struct.
 
 ### `export type`
 
-Todo Service, Client e API pública deve exportar seu tipo no topo do módulo. **Sem `any`** em `self`, `janitor`, `data` ou paths. Quando o módulo é um singleton/factory simples, **preferir `typeof(Modulo)`** em vez de duplicar manualmente a shape da tabela.
+Every Service, Client, and public API must export its type at the top of the module. **No `any`** on `self`, `janitor`, `data`, or paths. When the module is a simple singleton/factory, **prefer `typeof(Module)`** instead of manually duplicating the table shape.
 
 ```luau
 --!strict
@@ -714,30 +766,30 @@ local ExampleService = {
 export type ExampleService = typeof(ExampleService)
 ```
 
-Tipos compartilhados:
+Shared types:
 
-| Tipo | Require | Uso |
+| Type | Require | Use |
 |---|---|---|
-| **`ServiceTypes.Janitor`** | `Shareds.Types.ServiceTypes` | `_janitor`, parâmetro `janitor` |
-| **`DataServiceV2.PlayerDataStore`** | `ReplicatedStorage.DataServiceV2` | handle de `WaitForData()` / `Get()` |
-| **`typeof(Paths.…)`** | `dataservicev2.Paths` | paths em bindings/helpers |
+| **`ServiceTypes.Janitor`** | `Shareds.Types.ServiceTypes` | `_janitor`, `janitor` parameter |
+| **`DataServiceV2.PlayerDataStore`** | `ReplicatedStorage.DataServiceV2` | `WaitForData()` / `Get()` handle |
+| **`typeof(Paths.…)`** | `dataservicev2.Paths` | paths in bindings/helpers |
 
-Regras `--!strict` em `Services/`:
+`--!strict` rules in `Services/`:
 
-- Tipar parâmetros e retorno de **toda** função local e método.
-- `self` usa o `export type` do módulo — nunca `self: any`.
-- Evitar `:: any` no singleton; preferir `:: MeuService`.
-- `unknown` + narrow em valores de rede/API — não `any`.
-- Não entregar módulo com warnings do strict.
+- Type parameters and return of **every** local function and method.
+- `self` uses the module's `export type` — never `self: any`.
+- Avoid `:: any` on the singleton; prefer `:: MyService`.
+- `unknown` + narrow for network/API values — not `any`.
+- Do not ship a module with strict warnings.
 
-### Anotações explícitas
+### Explicit annotations
 
 ```luau
--- Ruim
+-- Bad
 local data = {}
 local icons: { [string]: string } = {}
 
--- Bom
+-- Good
 export type UserId = number
 export type PlayerSaveMap = { [UserId]: PlayerData }
 
@@ -746,7 +798,7 @@ local saves: PlayerSaveMap = {}
 
 ### Type cast (`::`)
 
-Use para afirmar o tipo de uma tabela singleton:
+Use to assert the type of a singleton table:
 
 ```luau
 local Service = {} :: MyServiceType
@@ -754,12 +806,12 @@ local Service = {} :: MyServiceType
 
 ---
 
-## Padrões de arquitetura
+## Architecture patterns
 
 ### Singleton (Services / Controllers)
 
 ```luau
--- require NÃO registra listeners
+-- require does NOT register listeners
 local Service = { _initialized = false } :: MyService
 
 function Service:Init()
@@ -771,22 +823,22 @@ end
 return Service
 ```
 
-| Camada | Método | Chamado por |
+| Layer | Method | Called by |
 |---|---|---|
-| Service servidor | `:Init()` | `Boot/*.server.luau` |
+| Server Service | `:Init()` | `Boot/*.server.luau` |
 | Controller | `:Init()` | `Controllers/*.client.luau` |
 | `*ServiceClient` | `:init()` | `Boot/ClientServicesBoot.client.luau` |
 
-### Handlers — scripts finos
+### Handlers — thin scripts
 
 ```luau
 -- DomainHandler.server.luau
--- Apenas conecta eventos e delega ao Service; lógica fica no Service
+-- Only connects events and delegates to the Service; logic stays in the Service
 ```
 
-### Janitor — obrigatório com ciclo de vida
+### Janitor — required with lifecycle
 
-API do pacote: `janitor:add(...)` e `janitor:destroy()` (métodos em **minúsculas**).
+Package API: `janitor:add(...)` and `janitor:destroy()` (methods in **lowercase**).
 
 ```luau
 const Janitor = require(ReplicatedStorage.Packages.janitor)
@@ -794,33 +846,33 @@ const Janitor = require(ReplicatedStorage.Packages.janitor)
 self._janitor = Janitor.new()
 
 -- RBXScriptConnection (Players, Instance, QuickNet)
-self._janitor:add(Players.PlayerAdded:Connect(handler)) -- infere "Disconnect"
+self._janitor:add(Players.PlayerAdded:Connect(handler)) -- infers "Disconnect"
 
--- DataServiceV2 GetChangedSignal → sleitnick Signal.Connection (tabela, NÃO RBXScriptConnection)
+-- DataServiceV2 GetChangedSignal → sleitnick Signal.Connection (table, NOT RBXScriptConnection)
 self._janitor:add(data:GetChangedSignal({ "Currencies", "Coins" }):Connect(function(newValue, oldValue)
 	-- ...
-end)) -- omitir methodName → usa "Destroy" na Connection
+end)) -- omit methodName → uses "Destroy" on Connection
 
--- Função de cleanup / cancel
+-- Cleanup / cancel function
 self._janitor:add(function()
 	cancelAnimation()
 end, true)
 
-self._janitor:destroy() -- ao desmontar
+self._janitor:destroy() -- on teardown
 ```
 
-#### Tipo de conexão → como registrar
+#### Connection type → how to register
 
-| Origem | Tipo retornado por `:Connect()` | `janitor:add` correto | Errado |
+| Origin | Type returned by `:Connect()` | Correct `janitor:add` | Wrong |
 |---|---|---|---|
-| `Players`, `Instance`, eventos Roblox | `RBXScriptConnection` | omitir methodName ou `"Disconnect"` | — |
-| `DataServiceV2` `GetChangedSignal` | `Connection` (sleitnick, **tabela**) | omitir methodName (→ `"Destroy"`) | `"Disconnect"` ❌ |
-| QuickNet `Connect` | `QuickNetConnection` | omitir methodName ou `"Disconnect"` |
-| Função de cleanup | `function` | `add(fn, true)` |
+| `Players`, `Instance`, Roblox events | `RBXScriptConnection` | omit methodName or `"Disconnect"` | — |
+| `DataServiceV2` `GetChangedSignal` | `Connection` (sleitnick, **table**) | omit methodName (→ `"Destroy"`) | `"Disconnect"` ❌ |
+| QuickNet `Connect` | `QuickNetConnection` | omit methodName or `"Disconnect"` |
+| Cleanup function | `function` | `add(fn, true)` |
 
-> **Nunca** `janitor:add(signalConnection, "Disconnect")` em `GetChangedSignal` — o Janitor chama `Disconnect()` global do Roblox e quebra em runtime com `invalid argument #1 to 'Disconnect' (RBXScriptConnection expected, got table)`.
+> **Never** `janitor:add(signalConnection, "Disconnect")` on `GetChangedSignal` — Janitor calls Roblox's global `Disconnect()` and fails at runtime with `invalid argument #1 to 'Disconnect' (RBXScriptConnection expected, got table)`.
 
-#### Janitor por jogador (servidor)
+#### Per-player Janitor (server)
 
 ```luau
 self._janitor:add(Players.PlayerRemoving:Connect(function(player: Player)
@@ -832,40 +884,40 @@ self._janitor:add(Players.PlayerRemoving:Connect(function(player: Player)
 end), "Disconnect")
 ```
 
-Preferir `PlayerRemoving` em vez de destruir o janitor dentro de `AncestryChanged` do próprio jogador.
+Prefer `PlayerRemoving` instead of destroying the janitor inside the player's own `AncestryChanged`.
 
-Todo `Connect`, tween, `task.delay` cancelável e callback de rede → registrar no Janitor.
+Every `Connect`, tween, cancelable `task.delay`, and network callback → register with Janitor.
 
 ---
 
 ## DataServiceV2
 
-| Arquivo | Papel |
+| File | Role |
 |---|---|
-| `src/Constants/Datas/PlayerData.luau` | Template + tipos do save |
-| `src/Workers/DataServiceV2.luau` | Wrapper com `Paths` tipados |
-| `src/Boot/Server.server.luau` | Inicialização do servidor |
-| `src/Boot/Client.client.luau` | Inicialização do cliente |
+| `src/Constants/Datas/PlayerData.luau` | Save template + types |
+| `src/Workers/DataServiceV2.luau` | Wrapper with typed `Paths` |
+| `src/Boot/Server.server.luau` | Server initialization |
+| `src/Boot/Client.client.luau` | Client initialization |
 
-No runtime, o wrapper é requerido por `ReplicatedStorage.Shareds.Workers.DataServiceV2`.
+At runtime, the wrapper is required via `ReplicatedStorage.Shareds.Workers.DataServiceV2`.
 
 ```luau
--- Servidor — mutação autorizada
+-- Server — authorized mutation
 const DataServiceV2 = require(ReplicatedStorage.Shareds.Workers.DataServiceV2)
 const DataService = DataServiceV2.Server
 const Paths = DataServiceV2.Paths
 
--- Cliente — somente leitura + GetChangedSignal
+-- Client — read-only + GetChangedSignal
 const DataService = DataServiceV2.Client
 ```
 
-Mutações **somente no servidor**. Cliente usa `GetChangedSignal` via Janitor — ver tabela em [Janitor](#janitor--obrigatório-com-ciclo-de-vida); **não** passar `"Disconnect"` na Connection do Signal.
+Mutations **only on the server**. Client uses `GetChangedSignal` via Janitor — see the table in [Janitor](#janitor--required-with-lifecycle); do **not** pass `"Disconnect"` on the Signal Connection.
 
 ---
 
-## Rede (Networker tipada) — gameplay
+## Networking (typed Networker) — gameplay
 
-Um Networker **por Service** em `src/Networker/` (`ReplicatedStorage.Shareds.Networker`). API estilo leif: whitelist client→server + `fire` server→client chama métodos do módulo client. **Tipagem de dados** = `export type` nos parâmetros dos métodos (`GameplayTypes`, `CardsServiceType`, …). Hot paths de dispatch usam `@native`.
+One Networker **per Service** under `src/Networker/` (`ReplicatedStorage.Shareds.Networker`). leif-style API: client→server whitelist + server→client `fire` calls methods on the client module. **Data typing** = `export type` on method parameters (`GameplayTypes`, `CardsServiceType`, …). Dispatch hot paths use `@native`.
 
 ```luau
 --!strict
@@ -877,46 +929,46 @@ self.Networker:fire(player, "SetEntityState", state :: GameplayTypes.EntityState
 
 -- Client
 self.Networker = Networker.client.new("GameplayService", self)
--- server chama SetEntityState / SetEnergy / AddUnit no próprio módulo
+-- server calls SetEntityState / SetEnergy / AddUnit on the module itself
 ```
 
-| Faça | Evite |
+| Do | Avoid |
 |---|---|
-| Tipos Luau nos payloads dos métodos | `fire` com tabelas soltas sem `export type` |
-| Validar no Service (whitelist + shape) | Expor todo método do Service ao client |
-| Um Networker por Service | RemoteEvent manual solto / ByteNet novo |
-| `@native` só no dispatch/fire hot path | `@native` em UI / boots |
+| Luau types on method payloads | `fire` with loose tables without `export type` |
+| Validate in the Service (whitelist + shape) | Expose every Service method to the client |
+| One Networker per Service | Loose manual RemoteEvent / new ByteNet |
+| `@native` only on dispatch/fire hot path | `@native` in UI / boots |
 
-Persistência do jogador continua em **DataServiceV2** (não Networker).
+Player persistence stays in **DataServiceV2** (not Networker).
 
 ## jecs (ECS) — Tower / Unit
 
-Combate e entities em `src/Classes/` no repo, montando em `ReplicatedStorage.Shareds.Classes` no runtime. Skill: **`jecs-ecs`**. jecs **não** é OOP — components + factories.
+Combat and entities in `src/Classes/` in the repo, mounting at `ReplicatedStorage.Shareds.Classes` at runtime. Skill: **`jecs-ecs`**. jecs is **not** OOP — components + factories.
 
-| Pasta | Papel |
+| Folder | Role |
 |---|---|
-| `Primitives/` | Um component por arquivo + `World` |
+| `Primitives/` | One component per file + `World` |
 | `MetaDatas/` | `Tower.new` / `Unit.new` |
-| `Entity/Tower`, `Entity/Units` | `{ Config, create }` — **sem** spawn no `require` |
+| `Entity/Tower`, `Entity/Units` | `{ Config, create }` — **no** spawn in `require` |
 
-Comentário `-- Funcionamento:` no topo de MetaDatas, defs e systems (não em todo Primitive). Layout Studio/pastas: skill **`anime-domains-layout`**.
+`-- How it works:` comment at the top of MetaDatas, defs, and systems (not on every Primitive). Studio/folder layout: skill **`anime-domains-layout`**.
 
 ---
 
-## Cliente vs servidor
+## Client vs server
 
-| Cliente | Servidor |
+| Client | Server |
 |---|---|
-| Damage numbers, partículas, trails | Validação de ações |
-| Camera shake, animações UI | Economia, inventário, dano |
+| Damage numbers, particles, trails | Action validation |
+| Camera shake, UI animations | Economy, inventory, damage |
 | `ezvisualz`, `stickybillboard` | DataServiceV2 writes |
-| `RenderStepped` / `Heartbeat` visual | Anti-cheat básico, rate-limit |
+| Visual `RenderStepped` / `Heartbeat` | Basic anti-cheat, rate-limit |
 
 ---
 
 ## Performance
 
-### Alocação e tabelas
+### Allocation and tables
 
 ```luau
 const buffer = table.create(100)
@@ -926,27 +978,27 @@ RunService.Heartbeat:Connect(function()
 end)
 ```
 
-| Evitar em loops | Preferir |
+| Avoid in loops | Prefer |
 |---|---|
-| `{}` novo a cada frame | `table.create` + `table.clear` |
+| New `{}` every frame | `table.create` + `table.clear` |
 | `Vector3.new()` | `const ZERO = Vector3.zero` |
 | `Instance.new()` | Object pooling |
 | `a .. b .. c` | `table.concat` |
 
-### Tarefas e loops
+### Tasks and loops
 
 ```luau
--- Ruim (deprecated)
+-- Bad (deprecated)
 spawn(fn); wait(); delay(1, fn)
 
--- Bom
+-- Good
 task.spawn(fn); task.wait(); task.delay(1, fn)
 
--- Loop com intervalo
+-- Loop with interval
 while task.wait(1) do end
 ```
 
-Em hot paths com arrays densos, preferir loop numérico:
+On hot paths with dense arrays, prefer numeric loops:
 
 ```luau
 for i = 1, #list do
@@ -954,116 +1006,120 @@ for i = 1, #list do
 end
 ```
 
-`pairs` / `ipairs` são aceitáveis fora de hot paths.
+`pairs` / `ipairs` are acceptable outside hot paths.
 
 ### Object pooling
 
-Obrigatório para alto volume: damage numbers, projéteis, NPCs, efeitos, drops.
+Required for high volume: damage numbers, projectiles, NPCs, effects, drops.
 
 ```luau
 local effect = EffectPool:Get()
 EffectPool:Return(effect)
 ```
 
-### Compilação nativa
+### Native compilation
 
-Ver seção [Cabeçalho e otimização de módulo](#cabeçalho-e-otimização-de-módulo). Resumo: `@native` por função > `--!native` por arquivo; nunca em Constants/UI/config.
-
----
-
-## Segurança
-
-1. Validar **todos** os inputs de rede no servidor
-2. Nunca aplicar moeda/dano/inventário só com base no cliente
-3. Rate-limit em ações frequentes
-4. Campos sensíveis em `Exclude` do DataServiceV2 (não replicam)
+See section [Module header and optimization](#module-header-and-optimization). Summary: `@native` per function > `--!native` per file; never in Constants/UI/config.
 
 ---
 
-## Convenções de arquivos
+## Security
 
-| Sufixo | Tipo Roblox | Executa sozinho? |
+1. Validate **all** network inputs on the server
+2. Never apply currency/damage/inventory based only on the client
+3. Rate-limit frequent actions
+4. Sensitive fields in DataServiceV2 `Exclude` (do not replicate)
+
+---
+
+## File conventions
+
+| Suffix | Roblox type | Runs on its own? |
 |---|---|---|
-| `*.server.luau` | Script | Sim (servidor) |
-| `*.client.luau` | LocalScript | Sim (cliente) |
-| `*.luau` | ModuleScript | Não — só via `require` |
+| `*.server.luau` | Script | Yes (server) |
+| `*.client.luau` | LocalScript | Yes (client) |
+| `*.luau` | ModuleScript | No — only via `require` |
 
-- **PascalCase** para pastas e módulos: `PlayerData`, `InventoryHandler`
-- Campos privados: `_camelCase`
-- `require` cacheado com `const` no topo do módulo
+- **PascalCase** for folders and modules: `PlayerData`, `InventoryHandler`
+- Private fields: `_camelCase`
+- Cache `require` with `const` at the top of the module
 
 ---
 
-## Checklist do agente
+## Agent checklist
 
-Ao gerar ou editar código, verificar:
+When generating or editing code, verify:
 
-1. [ ] Ler `.cursor/learnings/index.md` e learnings com tags da tarefa
-2. [ ] `--!strict` no módulo
-2. [ ] `const` para bindings imutáveis (services, requires, constantes, primitivos); `const function` para helpers estáveis
-3. [ ] `table.freeze` **somente** em tabelas compartilhadas que não podem ser mutadas (save template, deny codes, exports de API)
-4. [ ] Tipos semânticos (`IconKey`, `IconId`, `IconsMap`) — nunca `{ [string]: string }` solto
-5. [ ] `export type` em APIs públicas
-6. [ ] Singleton sem side effects no `require`
-7. [ ] `:Init()` / `:init()` idempotente com `assert(not self._initialized)`
-8. [ ] Janitor para toda conexão com ciclo de vida
-9. [ ] `GetChangedSignal` no Janitor **sem** `"Disconnect"` (usar methodName omitido)
-10. [ ] Mutação de dados só no servidor (DataServiceV2)
-11. [ ] Rede gameplay via Networker tipada (`src/Networker/`) + tipos nos métodos; save via DataServiceV2
-11b. [ ] Entities jecs: MetaData + `{ Config, create }` — sem spawn no `require`
-12. [ ] Efeitos visuais no cliente; validação no servidor
-13. [ ] Pooling para entidades/efeitos de alto volume
-14. [ ] `@native` / `--!native` apenas em hot paths comprovados — nunca em Constants/UI
-15. [ ] Legibilidade primeiro; micro-otimizar só com evidência
-16. [ ] Personagem/animações/assets compatíveis com **R6** (não R15)
-17. [ ] Buscar `src/Utils`, `src/Modules`, `src/Services/<Domínio>` e `src/Workers` **antes** de implementar math, tempo, formatação, som, popup, wrapper ou efeito de UI
-18. [ ] Novo código de domínio em `src/Services/<Domínio>/`; constantes de serviço **não** em `src/Constants/PrimaryDatas/`
-19. [ ] `src/Modules/` só para infra cross-cutting; `src/Workers/` para wrappers/infra compartilhada
-20. [ ] Usar `NumberModule` / `FormatNumber` para números; `SoundModule` para SFX; `Math` / `Lerp` para cálculos — não duplicar inline
-21. [ ] Sem `any` em `Services/` — usar `ServiceTypes.Janitor`, `DataServiceV2.PlayerDataStore` e `export type` completo no `self`
-22. [ ] Funções locais e métodos com parâmetros/retorno tipados; zero warnings do `--!strict` ao entregar
-23. [ ] Se corrigiu erro: documentar em `.cursor/learnings/` e atualizar `index.md`
+1. [ ] Read `.cursor/learnings/index.md` and learnings with tags for the task
+2. [ ] `--!strict` on the module
+2. [ ] `const` for immutable bindings (services, requires, constants, primitives); `const function` for stable helpers
+3. [ ] `table.freeze` **only** on shared tables that must not be mutated (save template, deny codes, API exports)
+4. [ ] Semantic types (`IconKey`, `IconId`, `IconsMap`) — never loose `{ [string]: string }`
+5. [ ] `export type` on public APIs
+6. [ ] Singleton with no side effects in `require`
+7. [ ] Idempotent `:Init()` / `:init()` with `assert(not self._initialized)`
+8. [ ] Janitor for every connection with a lifecycle
+9. [ ] `GetChangedSignal` in Janitor **without** `"Disconnect"` (omit methodName)
+10. [ ] Data mutation only on the server (DataServiceV2)
+11. [ ] Gameplay networking via typed Networker (`src/Networker/`) + types on methods; save via DataServiceV2
+11b. [ ] jecs entities: MetaData + `{ Config, create }` — no spawn in `require`
+12. [ ] Visual effects on the client; validation on the server
+13. [ ] Pooling for high-volume entities/effects
+14. [ ] `@native` / `--!native` only on proven hot paths — never in Constants/UI
+15. [ ] Readability first; micro-optimize only with evidence
+16. [ ] Character/animations/assets compatible with **R6** (not R15)
+17. [ ] Search `src/Utils`, `src/Modules`, `src/Services/<Domínio>`, and `src/Workers` **before** implementing math, time, formatting, sound, popup, wrapper, or UI effect
+18. [ ] New domain code in `src/Services/<Domínio>/`; service constants **not** in `src/Constants/PrimaryDatas/`
+19. [ ] `src/Modules/` only for cross-cutting infra; `src/Workers/` for shared wrappers/infra
+20. [ ] Use `NumberModule` / `FormatNumber` for numbers; `SoundModule` for SFX; `Math` / `Lerp` for calculations — do not duplicate inline
+21. [ ] No `any` in `Services/` — use `ServiceTypes.Janitor`, `DataServiceV2.PlayerDataStore`, and a complete `export type` on `self`
+22. [ ] Local functions and methods with typed parameters/returns; zero `--!strict` warnings when shipping
+23. [ ] If you fixed an error: document in `.cursor/learnings/` and update `index.md`
+24. [ ] Did **not** rewrite/reorganize the author's hand style — only the requested change; kept their `const`/`local` and file voice
 
 ---
 
 ## Anti-patterns
 
-- Corrigir erro sem documentar em `.cursor/learnings/`
-- Duplicar learning existente em vez de atualizar o arquivo
-- `{ [string]: string }`, `{ [number]: T }` ou outros mapas genéricos — criar `export type` com Key/Value/Map semânticos
-- `local` onde `const` bastaria
-- `local function` em helper estável quando `const function` serviria
-- `table.freeze` em excesso — `const` já protege o binding; freeze só quando o conteúdo compartilhado não pode mutar
-- `@native` / `--!native` em Constants, UI, boots ou handlers
-- Reatribuir variáveis que deveriam ser constantes
-- `Instance.new()` em loops de combate/VFX
-- Replicar inventário inteiro a cada mudança
-- Lógica de economia em `StarterPlayerScripts`
-- Side effects no corpo do módulo (fora de funções)
-- `while true do wait() end` sem intervalo
-- `RemoteEvent` manual para sistemas novos (usar Networker tipada em `src/Networker/`)
-- QuickNet / ByteNet para gameplay novo deste jogo (usar Networker por Service)
-- Spawn de entity jecs no corpo do `require` — exportar `{ Config, create }`
-- Modelar Tower/Unit como classe OOP com métodos de combate — usar components + systems
-- `janitor:add(getChangedSignal:Connect(...), "Disconnect")` — Connection do DataService é tabela, não `RBXScriptConnection`
-- Destruir janitor de jogador dentro do callback `AncestryChanged` do mesmo jogador — usar `Players.PlayerRemoving`
-- Otimização prematura em setup/config
-- "Performance antes da legibilidade" sem hot path identificado
-- Formatação numérica, lerp, clamp ou SFX implementados inline — usar `src/Utils` / `src/Modules` existentes
-- Criar novo helper genérico sem verificar `src/Utils`, `src/Modules` e `src/Workers` primeiro
-- Colocar `*Module` de domínio em `src/Modules/` — usar `src/Services/<Domínio>/`
-- Colocar wrapper compartilhado em `src/Services/` quando ele não é domínio de gameplay — usar `src/Workers/`
-- Colocar deny codes, settings ou tuning de serviço em `src/Constants/PrimaryDatas/` — usar `src/Services/<Domínio>/`
-- `self: any`, `janitor: any`, `data: any` ou `:: any` em singletons de `Services/` — usar `ServiceTypes.Janitor` e `DataServiceV2.PlayerDataStore`
-- Funções sem tipagem de parâmetro/retorno em módulos `--!strict`
+- Fixing an error without documenting in `.cursor/learnings/`
+- Duplicating an existing learning instead of updating the file
+- Rewriting hand-authored modules to match agent taste / "better organization"
+- Changing author `const` ↔ `local` (or helper declaration style) without being asked
+- Filling or deleting the author's WIP stubs unless requested
+- `{ [string]: string }`, `{ [number]: T }`, or other generic maps — create `export type` with semantic Key/Value/Map
+- `local` where `const` would suffice **when writing new code** (still do not rewrite existing author bindings)
+- `local function` for a stable helper when `const function` would work **on new helpers**
+- Excessive `table.freeze` — `const` already protects the binding; freeze only when shared contents must not mutate
+- `@native` / `--!native` in Constants, UI, boots, or handlers
+- Reassigning variables that should be constants
+- `Instance.new()` in combat/VFX loops
+- Replicating the entire inventory on every change
+- Economy logic in `StarterPlayerScripts`
+- Side effects in the module body (outside functions)
+- `while true do wait() end` without an interval
+- Manual `RemoteEvent` for new systems (use typed Networker in `src/Networker/`)
+- QuickNet / ByteNet for new gameplay in this game (use Networker per Service)
+- Spawning a jecs entity in the `require` body — export `{ Config, create }`
+- Modeling Tower/Unit as an OOP class with combat methods — use components + systems
+- `janitor:add(getChangedSignal:Connect(...), "Disconnect")` — DataService Connection is a table, not `RBXScriptConnection`
+- Destroying a player janitor inside that same player's `AncestryChanged` callback — use `Players.PlayerRemoving`
+- Premature optimization in setup/config
+- "Performance before readability" without an identified hot path
+- Number formatting, lerp, clamp, or SFX implemented inline — use existing `src/Utils` / `src/Modules`
+- Creating a new generic helper without checking `src/Utils`, `src/Modules`, and `src/Workers` first
+- Putting a domain `*Module` in `src/Modules/` — use `src/Services/<Domínio>/`
+- Putting a shared wrapper in `src/Services/` when it is not a gameplay domain — use `src/Workers/`
+- Putting deny codes, settings, or service tuning in `src/Constants/PrimaryDatas/` — use `src/Services/<Domínio>/`
+- `self: any`, `janitor: any`, `data: any`, or `:: any` on `Services/` singletons — use `ServiceTypes.Janitor` and `DataServiceV2.PlayerDataStore`
+- Functions without parameter/return typing in `--!strict` modules
 
 ---
 
-## Referências
+## References
 
-- Arquitetura do repositório: [Docs/FRAMEWORK.md](Docs/FRAMEWORK.md) (quando existir)
+- Repository architecture: [Docs/FRAMEWORK.md](Docs/FRAMEWORK.md) (when it exists)
 - Luau: [luau.org/syntax](https://luau.org/syntax/)
-- Networker (inspiração): [leifstout/networker](https://github.com/leifstout/networker)
+- Networker (inspiration): [leifstout/networker](https://github.com/leifstout/networker)
 - jecs: [DevForum](https://devforum.roblox.com/t/jecs-optimizing-declarative-scene-graphs-with-ecs/3263203)
 - Janitor: [github.com/1ForeverHD/Janitor](https://github.com/1ForeverHD/Janitor)
 - DataServiceV2: `Packages/_Index/.../dataservicev2/README.md`

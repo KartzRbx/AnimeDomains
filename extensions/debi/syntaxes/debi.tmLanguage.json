@@ -6,6 +6,7 @@
     { "include": "#comments" },
     { "include": "#strings" },
     { "include": "#keywords" },
+    { "include": "#events" },
     { "include": "#types" },
     { "include": "#constants" },
     { "include": "#fields" },
@@ -49,11 +50,36 @@
         }
       ]
     },
+    "events": {
+      "patterns": [
+        {
+          "match": "\\b(event)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.debi" },
+            "2": { "name": "entity.name.function.debi" }
+          }
+        },
+        {
+          "match": "\\b(type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.debi" },
+            "2": { "name": "entity.name.type.debi" }
+          }
+        },
+        {
+          "match": "\\b(opt)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.debi" },
+            "2": { "name": "variable.other.constant.debi" }
+          }
+        }
+      ]
+    },
     "types": {
       "patterns": [
         {
           "name": "support.type.primitive.debi",
-          "match": "\\b(u8|u16|u32|i8|i16|i32|f32|f64|bool|string|vector)\\b"
+          "match": "\\b(u8|u16|u32|i8|i16|i32|f32|f64|bool|string|vector|Player)\\b"
         },
         {
           "name": "entity.name.type.debi",
@@ -72,8 +98,11 @@
     "fields": {
       "patterns": [
         {
-          "name": "variable.other.property.debi",
-          "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(?=:)"
+          "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(:)",
+          "captures": {
+            "1": { "name": "variable.other.property.debi" },
+            "2": { "name": "keyword.operator.type.debi" }
+          }
         }
       ]
     },
@@ -93,7 +122,7 @@
         },
         {
           "name": "punctuation.separator.debi",
-          "match": "[,]"
+          "match": ","
         },
         {
           "name": "punctuation.bracket.debi",

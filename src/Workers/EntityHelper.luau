@@ -44,6 +44,28 @@ export type EntityDef = {
 	create: (position: Vector3) -> EntityId,
 }
 
+-- Card/unit recipe data (EnergyCost, ModelID, stats…) keyed by CardId
+export type EntityData = {
+	Id: string,
+	Name: string,
+	Level: number,
+	Class: string,
+	EnergyCost: number,
+	BaseHealth: number,
+	BaseDamage: number,
+	BaseRange: number,
+	DelayAttack: number,
+	DeployTime: number,
+	CardImage: string,
+	CardBack: string,
+	ModelID: string,
+	Walk: number,
+	TargetKind: string,
+	CanRetargetTroops: boolean,
+	ExpCurrent: number,
+	ExpMax: number,
+}
+
 local function findInFolder(folder: Folder, Name: EntityName): EntityDef?
 	for _, child in folder:GetChildren() do
 		if child:IsA("ModuleScript") and child.Name == Name then
@@ -80,6 +102,17 @@ function EntityHelp.CalculateRange(props: RangeCalculationProperties): number
 	local range = props.BaseRange + levelRange + bonusRange
 
 	return range * rangeMultiplier
+end
+
+-- Unit card recipe by CardId (e.g. "Sabre") — not player save data
+function EntityHelp.GetEntityDataByCardId(cardId: string): EntityData?
+	if type(cardId) ~= "string" or cardId == "" then
+		return nil
+	end
+
+	local UnitCardRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.UnitCardRegistry)
+	UnitCardRegistry.EnsureLoaded()
+	return UnitCardRegistry.Get(cardId) :: EntityData?
 end
 
 -- Optional Kind: if Tower and Unit share the same name (e.g. Dummy), pass "Unit" or "Tower"

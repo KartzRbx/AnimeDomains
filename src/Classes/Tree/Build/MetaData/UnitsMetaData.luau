@@ -19,6 +19,7 @@ local Velocity = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components
 local RangeBase = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.RangeBase)
 local Range = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Range)
 local DelayAttack = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.DelayAttack)
+local DeployTime = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.DeployTime)
 local EnergyCost = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.EnergyCost)
 local TargetKing = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.TargetKing)
 local Target = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Target)
@@ -26,12 +27,14 @@ local LastAttack = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Componen
 local CanRetargetTroops = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.CanRetargetTroops)
 local Class = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Class)
 local Icons = require(ReplicatedStorage.Shareds.Constants.PrimaryDatas.Icons)
+local UnitCardRegistry = require(script.Parent.UnitCardRegistry)
 local World = Mega.World
 local Jecs = Mega.Jecs
 
 export type UnitId = string
 export type UnitRange = number
 export type UnitDelayAttack = number
+export type UnitDeployTime = number
 export type EnergyCostValue = number
 export type TargetKindValue = TargetKing.TargetKindValue
 
@@ -43,6 +46,7 @@ export type UnitConfig = {
 	BaseDamage: number,
 	BaseRange: UnitRange,
 	DelayAttack: UnitDelayAttack,
+	DeployTime: UnitDeployTime,
 	EnergyCost: EnergyCostValue,
 	Class: string,
 	ModelID: string,
@@ -69,6 +73,7 @@ export type UnitCardParams = {
 	BaseDamage: number,
 	BaseRange: UnitRange,
 	DelayAttack: UnitDelayAttack,
+	DeployTime: UnitDeployTime,
 	CardImage: string,
 	CardBack: string,
 	ModelID: string,
@@ -113,6 +118,7 @@ local function toCardParams(config: UnitConfig): UnitCardParams
 		BaseDamage = config.BaseDamage,
 		BaseRange = config.BaseRange,
 		DelayAttack = config.DelayAttack,
+		DeployTime = config.DeployTime,
 		CardImage = config.CardImage or front,
 		CardBack = config.CardBack or back,
 		ModelID = config.ModelID,
@@ -143,33 +149,28 @@ local function new(config: UnitConfig): UnitEntity
 	World:set(entity, RangeBase, config.BaseRange)
 	World:set(entity, Range, config.BaseRange)
 	World:set(entity, DelayAttack, config.DelayAttack)
+	World:set(entity, DeployTime, config.DeployTime)
 	World:set(entity, EnergyCost, config.EnergyCost)
 	World:set(entity, TargetKing, config.TargetKind)
 	World:set(entity, Target, 0)
 	World:set(entity, LastAttack, 0)
 	World:set(entity, CanRetargetTroops, config.CanRetargetTroops)
 
-	CardRegistry[config.Id] = toCardParams(config)
+	local cardParams = toCardParams(config)
+	CardRegistry[config.Id] = cardParams
+	UnitCardRegistry.Set(config.Id, cardParams)
 	TemplateRegistry[config.Id] = entity
 	return entity
 end
 
 local function EnsureLoaded()
-	if datasLoaded then
-		return
-	end
+	UnitCardRegistry.EnsureLoaded()
 	datasLoaded = true
-
-	for _, child in UnitsFolder:GetChildren() do
-		if child:IsA("ModuleScript") then
-			require(child)
-		end
-	end
 end
 
 local function GetCardParams(unitId: string): UnitCardParams?
 	EnsureLoaded()
-	return CardRegistry[unitId]
+	return UnitCardRegistry.Get(unitId) or CardRegistry[unitId]
 end
 
 local function GetTemplate(unitId: string): UnitEntity?
@@ -204,6 +205,7 @@ local function SpawnFromId(unitId: string, options: SpawnFromIdOptions?): UnitEn
 	World:set(entity, RangeBase, World:get(template, RangeBase))
 	World:set(entity, Range, World:get(template, RangeBase))
 	World:set(entity, DelayAttack, World:get(template, DelayAttack))
+	World:set(entity, DeployTime, World:get(template, DeployTime))
 	World:set(entity, EnergyCost, World:get(template, EnergyCost))
 	World:set(entity, TargetKing, World:get(template, TargetKing))
 	World:set(entity, CanRetargetTroops, World:get(template, CanRetargetTroops))

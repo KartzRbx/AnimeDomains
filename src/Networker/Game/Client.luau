@@ -3,6 +3,7 @@
 
 const RunService = game:GetService("RunService")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const Players = game:GetService("Players")
 
 const BufferWriter = require(ReplicatedStorage.Shareds.Modules.Debi.BufferWriter)
 const BufferReader = require(ReplicatedStorage.Shareds.Modules.Debi.BufferReader)
@@ -18,14 +19,14 @@ export type Vec3Data = {
 	Z: number,
 }
 
-local function writeVec3Data(w: BufferWriter.BufferWriter, value: Vec3Data)
+const function writeVec3Data(w: BufferWriter.BufferWriter, value: Vec3Data)
 	w:writef32(value.X)
 	w:writef32(value.Y)
 	w:writef32(value.Z)
 end
 
-local function readVec3Data(r: BufferReader.BufferReader): Vec3Data
-	local value: Vec3Data = {} :: any
+const function readVec3Data(r: BufferReader.BufferReader): Vec3Data
+	const value: Vec3Data = {} :: any
 	value.X = r:readf32()
 	value.Y = r:readf32()
 	value.Z = r:readf32()
@@ -37,13 +38,13 @@ export type TowerInfo = {
 	Level: number,
 }
 
-local function writeTowerInfo(w: BufferWriter.BufferWriter, value: TowerInfo)
+const function writeTowerInfo(w: BufferWriter.BufferWriter, value: TowerInfo)
 	w:writestring(value.Id)
 	w:writeu16(value.Level)
 end
 
-local function readTowerInfo(r: BufferReader.BufferReader): TowerInfo
-	local value: TowerInfo = {} :: any
+const function readTowerInfo(r: BufferReader.BufferReader): TowerInfo
+	const value: TowerInfo = {} :: any
 	value.Id = r:readstring()
 	value.Level = r:readu16()
 	return value
@@ -55,14 +56,14 @@ export type TeamTowers = {
 	Right: TowerInfo,
 }
 
-local function writeTeamTowers(w: BufferWriter.BufferWriter, value: TeamTowers)
+const function writeTeamTowers(w: BufferWriter.BufferWriter, value: TeamTowers)
 	writeTowerInfo(w, value.Left)
 	writeTowerInfo(w, value.Main)
 	writeTowerInfo(w, value.Right)
 end
 
-local function readTeamTowers(r: BufferReader.BufferReader): TeamTowers
-	local value: TeamTowers = {} :: any
+const function readTeamTowers(r: BufferReader.BufferReader): TeamTowers
+	const value: TeamTowers = {} :: any
 	value.Left = readTowerInfo(r)
 	value.Main = readTowerInfo(r)
 	value.Right = readTowerInfo(r)
@@ -74,10 +75,10 @@ export type TeamInner = {
 	Deck: { string },
 }
 
-local function writeTeamInner(w: BufferWriter.BufferWriter, value: TeamInner)
+const function writeTeamInner(w: BufferWriter.BufferWriter, value: TeamInner)
 	writeTeamTowers(w, value.Towers)
 	do
-		local __arr = value.Deck
+		const __arr = value.Deck
 		w:writeu16(#__arr)
 		for __, __item in __arr do
 			w:writestring(__item)
@@ -85,12 +86,12 @@ local function writeTeamInner(w: BufferWriter.BufferWriter, value: TeamInner)
 	end
 end
 
-local function readTeamInner(r: BufferReader.BufferReader): TeamInner
-	local value: TeamInner = {} :: any
+const function readTeamInner(r: BufferReader.BufferReader): TeamInner
+	const value: TeamInner = {} :: any
 	value.Towers = readTeamTowers(r)
-	local __Deck = {}
+	const __Deck = {}
 	do
-		local __n = r:readu16()
+		const __n = r:readu16()
 		for __i = 1, __n do
 			__Deck[__i] = r:readstring()
 		end
@@ -104,13 +105,13 @@ export type TeamData = {
 	Data: TeamInner,
 }
 
-local function writeTeamData(w: BufferWriter.BufferWriter, value: TeamData)
+const function writeTeamData(w: BufferWriter.BufferWriter, value: TeamData)
 	w:writestring(value.Owner)
 	writeTeamInner(w, value.Data)
 end
 
-local function readTeamData(r: BufferReader.BufferReader): TeamData
-	local value: TeamData = {} :: any
+const function readTeamData(r: BufferReader.BufferReader): TeamData
+	const value: TeamData = {} :: any
 	value.Owner = r:readstring()
 	value.Data = readTeamInner(r)
 	return value
@@ -121,31 +122,110 @@ export type EntityState = {
 	Two: TeamData,
 }
 
-local function writeEntityState(w: BufferWriter.BufferWriter, value: EntityState)
+const function writeEntityState(w: BufferWriter.BufferWriter, value: EntityState)
 	writeTeamData(w, value.One)
 	writeTeamData(w, value.Two)
 end
 
-local function readEntityState(r: BufferReader.BufferReader): EntityState
-	local value: EntityState = {} :: any
+const function readEntityState(r: BufferReader.BufferReader): EntityState
+	const value: EntityState = {} :: any
 	value.One = readTeamData(r)
 	value.Two = readTeamData(r)
 	return value
 end
 
+export type MatchEnergy = {
+	Current: number,
+	Max: number,
+}
+
+const function writeMatchEnergy(w: BufferWriter.BufferWriter, value: MatchEnergy)
+	w:writef32(value.Current)
+	w:writef32(value.Max)
+end
+
+const function readMatchEnergy(r: BufferReader.BufferReader): MatchEnergy
+	const value: MatchEnergy = {} :: any
+	value.Current = r:readf32()
+	value.Max = r:readf32()
+	return value
+end
+
 export type PlaceUnitRequest = {
 	CardId: string,
+	SlotIndex: number,
 	Position: Vec3Data,
 }
 
-local function writePlaceUnitRequest(w: BufferWriter.BufferWriter, value: PlaceUnitRequest)
+const function writePlaceUnitRequest(w: BufferWriter.BufferWriter, value: PlaceUnitRequest)
 	w:writestring(value.CardId)
+	w:writeu8(value.SlotIndex)
 	writeVec3Data(w, value.Position)
 end
 
-local function readPlaceUnitRequest(r: BufferReader.BufferReader): PlaceUnitRequest
-	local value: PlaceUnitRequest = {} :: any
+const function readPlaceUnitRequest(r: BufferReader.BufferReader): PlaceUnitRequest
+	const value: PlaceUnitRequest = {} :: any
 	value.CardId = r:readstring()
+	value.SlotIndex = r:readu8()
+	value.Position = readVec3Data(r)
+	return value
+end
+
+export type CardHandState = {
+	Hand: { string },
+	NextCard: string,
+}
+
+const function writeCardHandState(w: BufferWriter.BufferWriter, value: CardHandState)
+	do
+		const __arr = value.Hand
+		w:writeu16(#__arr)
+		for __, __item in __arr do
+			w:writestring(__item)
+		end
+	end
+	w:writestring(value.NextCard)
+end
+
+const function readCardHandState(r: BufferReader.BufferReader): CardHandState
+	const value: CardHandState = {} :: any
+	const __Hand = {}
+	do
+		const __n = r:readu16()
+		for __i = 1, __n do
+			__Hand[__i] = r:readstring()
+		end
+	end
+	value.Hand = __Hand
+	value.NextCard = r:readstring()
+	return value
+end
+
+export type SpawnEntityInMapFromServerType = {
+	CardId: string,
+	Ready: boolean,
+	Attacking: boolean,
+	Player: Player?,
+	Position: Vec3Data,
+}
+
+const function writeSpawnEntityInMapFromServerType(w: BufferWriter.BufferWriter, value: SpawnEntityInMapFromServerType)
+	w:writestring(value.CardId)
+	w:writebool(value.Ready)
+	w:writebool(value.Attacking)
+	do
+		assert(typeof(value.Player) == "Instance" and value.Player:IsA("Player"), "[Debi] expected Player")
+		w:writef64(value.Player.UserId)
+	end
+	writeVec3Data(w, value.Position)
+end
+
+const function readSpawnEntityInMapFromServerType(r: BufferReader.BufferReader): SpawnEntityInMapFromServerType
+	const value: SpawnEntityInMapFromServerType = {} :: any
+	value.CardId = r:readstring()
+	value.Ready = r:readbool()
+	value.Attacking = r:readbool()
+	value.Player = Players:GetPlayerByUserId(r:readf64())
 	value.Position = readVec3Data(r)
 	return value
 end
@@ -160,7 +240,7 @@ export type UnitState = {
 	Moving: boolean,
 }
 
-local function writeUnitState(w: BufferWriter.BufferWriter, value: UnitState)
+const function writeUnitState(w: BufferWriter.BufferWriter, value: UnitState)
 	w:writeu32(value.NetId)
 	w:writestring(value.CardId)
 	w:writestring(value.Team)
@@ -170,8 +250,8 @@ local function writeUnitState(w: BufferWriter.BufferWriter, value: UnitState)
 	w:writebool(value.Moving)
 end
 
-local function readUnitState(r: BufferReader.BufferReader): UnitState
-	local value: UnitState = {} :: any
+const function readUnitState(r: BufferReader.BufferReader): UnitState
+	const value: UnitState = {} :: any
 	value.NetId = r:readu32()
 	value.CardId = r:readstring()
 	value.Team = r:readstring()
@@ -189,36 +269,19 @@ export type UnitUpdate = {
 	Moving: boolean,
 }
 
-local function writeUnitUpdate(w: BufferWriter.BufferWriter, value: UnitUpdate)
+const function writeUnitUpdate(w: BufferWriter.BufferWriter, value: UnitUpdate)
 	w:writeu32(value.NetId)
 	writeVec3Data(w, value.Position)
 	w:writef32(value.Health)
 	w:writebool(value.Moving)
 end
 
-local function readUnitUpdate(r: BufferReader.BufferReader): UnitUpdate
-	local value: UnitUpdate = {} :: any
+const function readUnitUpdate(r: BufferReader.BufferReader): UnitUpdate
+	const value: UnitUpdate = {} :: any
 	value.NetId = r:readu32()
 	value.Position = readVec3Data(r)
 	value.Health = r:readf32()
 	value.Moving = r:readbool()
-	return value
-end
-
-export type MatchEnergy = {
-	Current: number,
-	Max: number,
-}
-
-local function writeMatchEnergy(w: BufferWriter.BufferWriter, value: MatchEnergy)
-	w:writef32(value.Current)
-	w:writef32(value.Max)
-end
-
-local function readMatchEnergy(r: BufferReader.BufferReader): MatchEnergy
-	local value: MatchEnergy = {} :: any
-	value.Current = r:readf32()
-	value.Max = r:readf32()
 	return value
 end
 
@@ -228,13 +291,15 @@ local remotes: Remotes.DebiRemotes? = nil
 local flushing = false
 
 local FetchPlayerEnergy_callback: ((energy: number) -> ())? = nil
-local SetEntityState_callback: ((state: EntityState) -> ())? = nil
 local SetEnergy_callback: ((energy: MatchEnergy) -> ())? = nil
+local SyncCardHand_callback: ((state: CardHandState) -> ())? = nil
+local SpawnEntityInMapFromServer_callback: ((payload: SpawnEntityInMapFromServerType) -> ())? = nil
+local SetEntityState_callback: ((state: EntityState) -> ())? = nil
 local AddUnit_callbacks: { (unit: UnitState) -> () } = {}
 local UpdateUnit_callbacks: { (unit: UnitUpdate) -> () } = {}
 local RemoveUnit_callbacks: { (netId: number) -> () } = {}
 
-local function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)
+const function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)
 	if w:len() == 0 then
 		return
 	end
@@ -242,8 +307,8 @@ local function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | U
 	w:reset()
 end
 
-local function flushAll()
-	local r = remotes
+const function flushAll()
+	const r = remotes
 	if not r then
 		return
 	end
@@ -251,50 +316,66 @@ local function flushAll()
 	flushWriter(unreliableWriter, r.Unreliable)
 end
 
-local function dispatchServer(buf: buffer)
-	local r = BufferReader.new(buf)
+const function dispatchServer(buf: buffer)
+	const r = BufferReader.new(buf)
 	while r:hasMore() do
-		local id = r:readu8()
+		const id = r:readu8()
 		if id == 1 then
-			local energy = r:readf32()
-			local cb = FetchPlayerEnergy_callback
+			const energy = r:readf32()
+			const cb = FetchPlayerEnergy_callback
 			if cb then
 				task.spawn(cb, energy)
 			end
 			continue
 		end
-		if id == 3 then
-			local state = readEntityState(r)
-			local cb = SetEntityState_callback
+		if id == 2 then
+			const energy = readMatchEnergy(r)
+			const cb = SetEnergy_callback
+			if cb then
+				task.spawn(cb, energy)
+			end
+			continue
+		end
+		if id == 4 then
+			const state = readCardHandState(r)
+			const cb = SyncCardHand_callback
 			if cb then
 				task.spawn(cb, state)
 			end
 			continue
 		end
-		if id == 4 then
-			local energy = readMatchEnergy(r)
-			local cb = SetEnergy_callback
+		if id == 5 then
+			const payload = readSpawnEntityInMapFromServerType(r)
+			const cb = SpawnEntityInMapFromServer_callback
 			if cb then
-				task.spawn(cb, energy)
+				task.spawn(cb, payload)
 			end
 			continue
 		end
-		if id == 5 then
-			local unit = readUnitState(r)
+		if id == 6 then
+			const state = readEntityState(r)
+			const cb = SetEntityState_callback
+			if cb then
+				task.spawn(cb, state)
+			end
+			continue
+		end
+		if id == 7 then
+			const unit = readUnitState(r)
 			for _, cb in AddUnit_callbacks do
 				task.spawn(cb, unit)
 			end
 			continue
 		end
-		if id == 6 then
-			local unit = readUnitUpdate(r)
+		if id == 8 then
+			const unit = readUnitUpdate(r)
 			for _, cb in UpdateUnit_callbacks do
 				task.spawn(cb, unit)
 			end
 			continue
 		end
-		if id == 7 then
-			local netId = r:readu32()
+		if id == 9 then
+			const netId = r:readu32()
 			for _, cb in RemoveUnit_callbacks do
 				task.spawn(cb, netId)
 			end
@@ -304,13 +385,13 @@ local function dispatchServer(buf: buffer)
 	end
 end
 
-local Debi = {}
+const Debi = {}
 
 Debi.PutCardInPlace = {}
 
 function Debi.PutCardInPlace.Fire(payload: PlaceUnitRequest)
-	local w = reliableWriter
-	w:writeu8(2)
+	const w = reliableWriter
+	w:writeu8(3)
 	writePlaceUnitRequest(w, payload)
 end
 
@@ -319,14 +400,24 @@ function Debi.FetchPlayerEnergy.SetCallback(cb: (energy: number) -> ())
 	FetchPlayerEnergy_callback = cb
 end
 
-Debi.SetEntityState = Debi.SetEntityState or {}
-function Debi.SetEntityState.SetCallback(cb: (state: EntityState) -> ())
-	SetEntityState_callback = cb
-end
-
 Debi.SetEnergy = Debi.SetEnergy or {}
 function Debi.SetEnergy.SetCallback(cb: (energy: MatchEnergy) -> ())
 	SetEnergy_callback = cb
+end
+
+Debi.SyncCardHand = Debi.SyncCardHand or {}
+function Debi.SyncCardHand.SetCallback(cb: (state: CardHandState) -> ())
+	SyncCardHand_callback = cb
+end
+
+Debi.SpawnEntityInMapFromServer = Debi.SpawnEntityInMapFromServer or {}
+function Debi.SpawnEntityInMapFromServer.SetCallback(cb: (payload: SpawnEntityInMapFromServerType) -> ())
+	SpawnEntityInMapFromServer_callback = cb
+end
+
+Debi.SetEntityState = Debi.SetEntityState or {}
+function Debi.SetEntityState.SetCallback(cb: (state: EntityState) -> ())
+	SetEntityState_callback = cb
 end
 
 Debi.AddUnit = Debi.AddUnit or {}
@@ -349,7 +440,7 @@ function Debi.Flush()
 end
 
 do
-	local r = Remotes.getClient(CHANNEL)
+	const r = Remotes.getClient(CHANNEL)
 	remotes = r
 	r.Reliable.OnClientEvent:Connect(function(payload: unknown)
 		if typeof(payload) ~= "buffer" then

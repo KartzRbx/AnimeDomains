@@ -1,9 +1,12 @@
 --!strict
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+const signal = require(ReplicatedStorage.Packages.signal)
 const GameplayTypes = require(script.Parent.Parent.GameplayService.GameplayTypes)
 
 export type PlaceUnitRequest = {
 	CardId: string,
+	SlotIndex: number,
 	Position: GameplayTypes.Vec3Data,
 }
 
@@ -100,6 +103,67 @@ export type GameplayHud = Frame & {
 	UIGradient: UIGradient,
 	UIStroke: UIStroke,
 }
+
+--[[
+	 00:10:09.848   ▼  {
+                    ["CardId"] = "PlaceholderFour",
+                    ["Position"] =  ▼  {
+                       ["X"] = 211.2488250732422,
+                       ["Y"] = 54.8416633605957,
+                       ["Z"] = 133.9837341308594
+                    },
+                    ["SlotIndex"] = 1
+                 }  -  Servidor - CardsEntityManager:10
+]]
+
+export type NewEntityCardData = {
+	CardId: string,
+	Position: GameplayTypes.Vec3Data,
+	Player: Player,
+}
+
+export type SpawnEntityCallback = {
+	Completed: typeof(signal.new()),
+}
+
+export type Clock = Model & {
+	Look: BasePart & {
+		Attachment: Attachment & {
+			Wave: ParticleEmitter,
+		},
+		Cowdown: BillboardGui & {
+			Container: Frame & {
+				TextLabel: TextLabel & {
+					UIShadow: UIShadow & {
+						UICorner: UICorner,
+					},
+				},
+			},
+		},
+	},
+	Mesh: BasePart,
+	Mesh_2: BasePart & {
+		WeldConstraint: WeldConstraint,
+	},
+	Mesh_3: BasePart,
+	Mesh_4: BasePart,
+	Mesh_5: BasePart & {
+		WeldConstraint: WeldConstraint,
+		WeldConstraint_2: WeldConstraint,
+		WeldConstraint_3: WeldConstraint,
+	},
+}
+
+-- Mirrors Debi SpawnEntityInMapFromServerType (network payload + local entry)
+export type CardEntityEntry = {
+	CardId: string,
+	Ready: boolean,
+	Attacking: boolean,
+	Player: Player,
+	Position: GameplayTypes.Vec3Data,
+}
+
+export type CardEntityMap = { [string]: CardEntityEntry }
 
 export type MainGui = ScreenGui & {
 	Container: Frame & {

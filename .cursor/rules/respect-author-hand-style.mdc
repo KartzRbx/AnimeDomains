@@ -1,0 +1,22 @@
+---
+description: Respect the owner's hand-written coding style — never reorganize or rewrite their voice for agent taste. Always apply.
+alwaysApply: true
+---
+
+# Respect author hand style
+
+The owner programs **by hand**. Existing code in a file is their voice.
+
+## Do
+
+- Change only what they asked
+- Keep their `const` / `local`, names, stubs, section markers, and WIP
+- Mirror their patterns when adding lines in the same file
+
+## Do not
+
+- Rewrite or "clean up" organization without an explicit ask
+- Swap `const` ↔ `local` (or helper declaration style) unprompted
+- Fill/delete incomplete functions they are writing unless requested
+
+Author hand style in the open file wins over agent preference for cleaner structure.

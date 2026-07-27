@@ -1,5 +1,5 @@
 /**
- * Debi type helpers — write/read Luau snippets por tipo IDL
+ * Debi type helpers — write/read Luau snippets per IDL type
  */
 
 const PRIMITIVES = new Set([
@@ -15,8 +15,15 @@ const PRIMITIVES = new Set([
   "string",
 ]);
 
+/** Built-in named types with custom pack/unpack (not structs / aliases). */
+const BUILTINS = new Set(["Player"]);
+
 function isPrimitive(name) {
   return PRIMITIVES.has(name);
+}
+
+function isBuiltin(name) {
+  return BUILTINS.has(name);
 }
 
 function parseType(raw) {
@@ -49,6 +56,7 @@ function luauType(typeNode, typeMap) {
   if (typeNode.kind === "named") {
     if (typeNode.name === "bool") return "boolean";
     if (typeNode.name === "string") return "string";
+    if (typeNode.name === "Player") return "Player?";
     if (isPrimitive(typeNode.name)) return "number";
     const alias = typeMap[typeNode.name];
     if (alias) {
@@ -65,6 +73,15 @@ function writeExpr(writerVar, valueExpr, typeNode, typeMap) {
     const name = typeNode.name;
     if (isPrimitive(name)) {
       return `${writerVar}:write${name}(${valueExpr})`;
+    }
+    if (name === "Player") {
+      // f64: Roblox UserIds can exceed u32 (e.g. 8e9+)
+      return [
+        `do`,
+        `\tassert(typeof(${valueExpr}) == "Instance" and ${valueExpr}:IsA("Player"), "[Debi] expected Player")`,
+        `\t${writerVar}:writef64(${valueExpr}.UserId)`,
+        `end`,
+      ].join("\n");
     }
     const alias = typeMap[name];
     if (!alias) {
@@ -88,7 +105,7 @@ function writeExpr(writerVar, valueExpr, typeNode, typeMap) {
   if (typeNode.kind === "array") {
     return [
       `do`,
-      `\tlocal __arr = ${valueExpr}`,
+      `\tconst __arr = ${valueExpr}`,
       `\t${writerVar}:writeu16(#__arr)`,
       `\tfor __, __item in __arr do`,
       `\t\t${writeExpr(writerVar, "__item", typeNode.element, typeMap).split("\n").join("\n\t\t")}`,
@@ -105,6 +122,9 @@ function readExpr(readerVar, typeNode, typeMap, indent = "") {
     const name = typeNode.name;
     if (isPrimitive(name)) {
       return `${readerVar}:read${name}()`;
+    }
+    if (name === "Player") {
+      return `Players:GetPlayerByUserId(${readerVar}:readf64())`;
     }
     const alias = typeMap[name];
     if (!alias) {
@@ -143,9 +163,9 @@ function readArrayBlock(readerVar, destVar, typeNode, typeMap, indent) {
     throw new Error("[Debi] nested arrays not supported in v1");
   }
   return [
-    `${indent}local ${destVar} = {}`,
+    `${indent}const ${destVar} = {}`,
     `${indent}do`,
-    `${indent}\tlocal __n = ${readerVar}:readu16()`,
+    `${indent}\tconst __n = ${readerVar}:readu16()`,
     `${indent}\tfor __i = 1, __n do`,
     `${indent}\t\t${destVar}[__i] = ${elRead}`,
     `${indent}\tend`,
@@ -171,7 +191,9 @@ function validateRead(valueExpr, typeNode, typeMap) {
 
 module.exports = {
   PRIMITIVES,
+  BUILTINS,
   isPrimitive,
+  isBuiltin,
   parseType,
   luauType,
   writeExpr,

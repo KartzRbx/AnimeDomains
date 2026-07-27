@@ -1,5 +1,5 @@
 --!strict
--- Behavior: clones cards in CardsContainer, drag follows mouse; lift → shrink, return → grow
+-- Behavior: 4 active hand slots + NextCard; drag place; refill from SyncCardHand
 
 const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,17 +7,21 @@ const TweenService = game:GetService("TweenService")
 const UserInputService = game:GetService("UserInputService")
 const GuiService = game:GetService("GuiService")
 
+const CardsEntityManager = require(script.Parent.CardsEntityManager)
 const PreviewModelManager = require(script.Parent.PreviewModelManager)
 const UnitsMetaData = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.UnitsMetaData)
 const GameplayTypes = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayTypes)
 const CardLayout = require(ReplicatedStorage.Shareds.Services.CardsService.Interface.Components.CardLayout)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
+const PlayerUtils = require(ReplicatedStorage.Shareds.Utils.PlayerUtils)
 const UIModule = require(ReplicatedStorage.Shareds.Modules.UIModule)
-const Debi = require(ReplicatedStorage.Shareds.Networker.Net).Game
+const Debi = require(ReplicatedStorage.Shareds.Networker.NetClient).Game
 const CardsServiceType = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceType)
+const CardsServiceUtils = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceUtils)
 const Janitor = require(ReplicatedStorage.Packages.janitor)
 
-const MAX_SLOTS = 4
+const MAX_SLOTS = CardsServiceUtils.HAND_SIZE
+
 
 local SLOT_POSITIONS: { UDim2 } = {
 	UDim2.fromScale(0.125, 0.365),
@@ -26,46 +30,53 @@ local SLOT_POSITIONS: { UDim2 } = {
 	UDim2.fromScale(0.874, 0.365),
 }
 
+local NEXT_CARD_POSITION = UDim2.fromScale(-0.12, 0.62)
+local NEXT_CARD_SCALE = 0.72
 
+type CardHandState = {
+	Hand: { string },
+	NextCard: string,
+}
 
 -- Limit: Y priority (lifting the card). In CardsContainer scale.
-const Y_LIFT_LIMIT = 0.5
-const X_WEIGHT = 0.35
-const BASE_CARD_SCALE = 1
-const MIN_DRAG_SCALE = 0.04 -- nearly vanishes at top of lift
+local Y_LIFT_LIMIT = 0.5
+local X_WEIGHT = 0.35
+local BASE_CARD_SCALE = 1
+local MIN_DRAG_SCALE = 0.04 -- nearly vanishes at top of lift
 
-const ENTRANCE_Y_OFFSET = 0.35
-const ENTRANCE_STAGGER = 0.14
-const ENTRANCE_INFO = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-const RETURN_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local ENTRANCE_Y_OFFSET = 0.35
+local ENTRANCE_STAGGER = 0.14
+local ENTRANCE_INFO = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local RETURN_INFO = TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local previewBind: PreviewModelManager.BindRaycastHandle? = nil
 
-const CardServiceClient = {
+local CardServiceClient = {
 	Initialized = false,
 	MainGui = nil :: ScreenGui?,
 	CardsContainer = nil :: Frame?,
 	DeckJanitor = nil :: any,
 	ActiveCards = {} :: { [number]: CardLayout.CardHandle },
-	LastDeckKey = "",
+	NextCardHandle = nil :: CardLayout.CardHandle?,
+	LastHandKey = "",
 	EntranceToken = 0,
 	LocalTeam = "One" :: PlacementZoneUtils.TeamName,
 }
 
 export type CardServiceClient = typeof(CardServiceClient)
 
-const function buildDeckKey(deck: { string }): string
-	return table.concat(deck, "|")
+local function buildHandKey(hand: { string }, nextCard: string): string
+	return `{table.concat(hand, "|")}>>{nextCard}`
 end
 
-const function udim2ToVector2(position: UDim2, parentSize: Vector2): Vector2
+local function udim2ToVector2(position: UDim2, parentSize: Vector2): Vector2
 	return Vector2.new(
 		position.X.Scale * parentSize.X + position.X.Offset,
 		position.Y.Scale * parentSize.Y + position.Y.Offset
 	)
 end
 
-const function getLiftScore(slotPos: UDim2, cardPos: UDim2, parentSize: Vector2): (number, number, number)
+local function getLiftScore(slotPos: UDim2, cardPos: UDim2, parentSize: Vector2): (number, number, number)
 	local slot = udim2ToVector2(slotPos, parentSize)
 	local card = udim2ToVector2(cardPos, parentSize)
 
@@ -75,7 +86,7 @@ const function getLiftScore(slotPos: UDim2, cardPos: UDim2, parentSize: Vector2)
 	return score, dyUp, dx
 end
 
-const function pointerToParentScale(parent: GuiObject, screenPos: Vector2?): Vector2
+local function pointerToParentScale(parent: GuiObject, screenPos: Vector2?): Vector2
 	local mouse = screenPos or (UserInputService:GetMouseLocation() - GuiService:GetGuiInset())
 	local absPos = parent.AbsolutePosition
 	local absSize = parent.AbsoluteSize
@@ -91,11 +102,8 @@ function CardServiceClient.ResolveHud(self: CardServiceClient): Frame
 		return self.CardsContainer
 	end
 
-	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local main = playerGui:WaitForChild("Main") :: ScreenGui
-	local container = main:WaitForChild("Container")
-	local gameplay = container:WaitForChild("Gameplay")
-	local cardsContainer = gameplay:WaitForChild("CardsContainer")
+	local main = PlayerUtils.waitMain()
+	local cardsContainer = PlayerUtils.wait("Main/Container/Gameplay/CardsContainer")
 	assert(cardsContainer:IsA("Frame"), "[CardsServiceClient] CardsContainer must be a Frame")
 
 	for _, child in cardsContainer:GetChildren() do
@@ -121,7 +129,17 @@ function CardServiceClient.ClearDeck(self: CardServiceClient)
 		self.DeckJanitor:destroy()
 	end
 	self.DeckJanitor = Janitor.new()
+
+	for slotIndex, handle in self.ActiveCards do
+		handle.Destroy()
+		self.ActiveCards[slotIndex] = nil
+	end
 	table.clear(self.ActiveCards)
+
+	if self.NextCardHandle then
+		self.NextCardHandle.Destroy()
+		self.NextCardHandle = nil
+	end
 end
 
 local function playEntrance(template: GuiObject, targetPos: UDim2, janitor: any)
@@ -306,6 +324,7 @@ function CardServiceClient.ManagerInsertCardHandle(
 
 			local payload: CardsServiceType.PlaceUnitRequest = {
 				CardId = handle.Data.Id,
+				SlotIndex = slotIndex,
 				Position = {
 					X = placePos.X,
 					Y = placePos.Y,
@@ -346,19 +365,149 @@ function CardServiceClient.ManagerInsertCardHandle(
 	end), "Disconnect")
 end
 
-function CardServiceClient.RenderDeck(self: CardServiceClient, deck: { string })
-	local key = buildDeckKey(deck)
-	if key == self.LastDeckKey and next(self.ActiveCards) ~= nil then
-		return
+local function spawnSlotCard(
+	self: CardServiceClient,
+	cardId: string,
+	slotIndex: number,
+	animate: boolean
+): CardLayout.CardHandle?
+	local cardData = UnitsMetaData.GetCardParams(cardId)
+	if not cardData then
+		warn(`[CardsServiceClient] Card data missing: {cardId}`)
+		return nil
 	end
-	self.LastDeckKey = key
 
 	local cardsContainer = self:ResolveHud()
-	self:ClearDeck()
+	local targetPos = SLOT_POSITIONS[slotIndex]
+	local handle = CardLayout.Make(cardData, false)
+	local template = handle.Template
+	template.Name = `Card_Slot{slotIndex}_{cardId}`
+	template.ZIndex = 1
+	template.Parent = cardsContainer
+
+	self.ActiveCards[slotIndex] = handle
+
+	if animate then
+		playEntrance(template, targetPos, self.DeckJanitor)
+	else
+		template.AnchorPoint = Vector2.new(0.5, 0.5)
+		template.Position = targetPos
+		template.Visible = true
+	end
+
+	self:ManagerInsertCardHandle(handle, targetPos, slotIndex)
+
+	return handle
+end
+
+function CardServiceClient.RenderNextCard(self: CardServiceClient, cardId: string, animate: boolean)
+	if self.NextCardHandle then
+		self.NextCardHandle.Destroy()
+		self.NextCardHandle = nil
+	end
+
+	local cardData = UnitsMetaData.GetCardParams(cardId)
+	if not cardData then
+		warn(`[CardsServiceClient] NextCard data missing: {cardId}`)
+		return
+	end
+
+	local cardsContainer = self:ResolveHud()
+	local handle = CardLayout.Make(cardData, false)
+	local template = handle.Template
+	template.Name = `NextCard_{cardId}`
+	template.ZIndex = 0
+	template.Parent = cardsContainer
+
+	local cardButton = template.Card
+	cardButton.Active = false
+	cardButton.Interactable = false
+
+	local uiScale = getCardScale(cardButton)
+	if uiScale then
+		uiScale.Scale = NEXT_CARD_SCALE
+	end
+
+	if animate then
+		playEntrance(template, NEXT_CARD_POSITION, self.DeckJanitor)
+		if uiScale then
+			local scaleTween = TweenService:Create(uiScale, ENTRANCE_INFO, { Scale = NEXT_CARD_SCALE })
+			self.DeckJanitor:add(scaleTween, "Cancel")
+			scaleTween:Play()
+		end
+	else
+		template.AnchorPoint = Vector2.new(0.5, 0.5)
+		template.Position = NEXT_CARD_POSITION
+		template.Visible = true
+	end
+
+	self.NextCardHandle = handle
+end
+
+function CardServiceClient.ReplaceSlot(
+	self: CardServiceClient,
+	slotIndex: number,
+	cardId: string
+)
+	local old = self.ActiveCards[slotIndex]
+	if old then
+		old.Destroy()
+		self.ActiveCards[slotIndex] = nil
+	end
+
+	spawnSlotCard(self, cardId, slotIndex, true)
+end
+
+function CardServiceClient.RenderHandState(self: CardServiceClient, state: CardHandState)
+	local key = buildHandKey(state.Hand, state.NextCard)
+	local hadCards = next(self.ActiveCards) ~= nil
+
+	local hasPendingCommit = false
+	for _, handle in self.ActiveCards do
+		if handle.Template.Visible == false then
+			hasPendingCommit = true
+			break
+		end
+	end
+
+	if key == self.LastHandKey and hadCards and self.NextCardHandle and not hasPendingCommit then
+		return
+	end
+
 	UnitsMetaData.EnsureLoaded()
+	self:ResolveHud()
+
+	-- Incremental update: only replace changed slots / NextCard.
+	if hadCards and self.LastHandKey ~= "" then
+		for slotIndex = 1, MAX_SLOTS do
+			local cardId = state.Hand[slotIndex]
+			local existing = self.ActiveCards[slotIndex]
+			if not cardId then
+				continue
+			end
+
+			if not existing or existing.Data.Id ~= cardId or existing.Template.Visible == false then
+				-- Replace when id changed, or when slot was committed (play / reject restore)
+				self:ReplaceSlot(slotIndex, cardId)
+			end
+		end
+
+		-- Only refresh NextCard when the queued card actually changed (successful play).
+		-- Cancelled drag / rejected place must leave NextCard untouched.
+		if not self.NextCardHandle or self.NextCardHandle.Data.Id ~= state.NextCard then
+			self:RenderNextCard(state.NextCard, true)
+		end
+
+		self.LastHandKey = key
+		return
+	end
+
+	-- First full deal
+	self.LastHandKey = key
+	self:ClearDeck()
 
 	local token = self.EntranceToken
-	local slotCount = math.min(#deck, MAX_SLOTS)
+	local slotCount = math.min(#state.Hand, MAX_SLOTS)
 
 	task.spawn(function()
 		for slotIndex = 1, slotCount do
@@ -366,53 +515,38 @@ function CardServiceClient.RenderDeck(self: CardServiceClient, deck: { string })
 				return
 			end
 
-			local cardId = deck[slotIndex]
-			local cardData = UnitsMetaData.GetCardParams(cardId)
-			if not cardData then
-				warn(`[CardsServiceClient] Card data missing: {cardId}`)
-				continue
-			end
-
-			local targetPos = SLOT_POSITIONS[slotIndex]
-			local handle = CardLayout.Make(cardData, false)
-			local template = handle.Template
-			template.Name = `Card_Slot{slotIndex}_{cardId}`
-			template.ZIndex = 1
-			template.Parent = cardsContainer
-
-			self.ActiveCards[slotIndex] = handle
-
-			playEntrance(template, targetPos, self.DeckJanitor)
+			local cardId = state.Hand[slotIndex]
+			spawnSlotCard(self, cardId, slotIndex, true)
 			task.wait(ENTRANCE_STAGGER)
-
-			self:ManagerInsertCardHandle(handle, targetPos, slotIndex)
-
-			self.DeckJanitor:add(function()
-				handle.Destroy()
-			end, true)
 		end
+
+		if token ~= self.EntranceToken then
+			return
+		end
+
+		self:RenderNextCard(state.NextCard, true)
 	end)
+end
+
+function CardServiceClient.OnSyncCardHand(self: CardServiceClient, state: CardHandState)
+	self:RenderHandState(state)
 end
 
 function CardServiceClient.OnEntityState(self: CardServiceClient, state: GameplayTypes.EntityState)
 	local localName = Players.LocalPlayer.Name
 	local teamName: PlacementZoneUtils.TeamName? = nil
-	local teamData: GameplayTypes.TeamData? = nil
 
 	if state.One.Owner == localName then
 		teamName = "One"
-		teamData = state.One
 	elseif state.Two.Owner == localName then
 		teamName = "Two"
-		teamData = state.Two
 	end
 
-	if not teamData or not teamName then
+	if not teamName then
 		return
 	end
 
 	self.LocalTeam = teamName
-	self:RenderDeck(teamData.Data.Deck)
 end
 
 function CardServiceClient.Init(self: CardServiceClient): CardServiceClient
@@ -422,10 +556,20 @@ function CardServiceClient.Init(self: CardServiceClient): CardServiceClient
 
 	self.Initialized = true
 	self.ActiveCards = {}
+	self.NextCardHandle = nil
 	self.DeckJanitor = Janitor.new()
 	self.EntranceToken = 0
+	self.LastHandKey = ""
 
 	UnitsMetaData.EnsureLoaded()
+
+	Debi.SyncCardHand.SetCallback(function(state)
+		self:OnSyncCardHand(state)
+	end)
+
+	Debi.SpawnEntityInMapFromServer.SetCallback(function(payload)
+		CardsEntityManager:updateEntity(payload)
+	end)
 
 	task.spawn(function()
 		self:ResolveHud()

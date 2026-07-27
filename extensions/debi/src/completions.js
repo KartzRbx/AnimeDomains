@@ -10,7 +10,7 @@ const KEYWORDS = [
 const FROM_VALUES = ["Server", "Client"];
 const RELIABILITY = ["Reliable", "Unreliable"];
 const CALL_MODES = ["SingleAsync", "ManyAsync", "SingleSync", "ManySync"];
-const PRIMITIVES = ["u8", "u16", "u32", "i8", "i16", "i32", "f32", "f64", "bool", "string", "vector"];
+const PRIMITIVES = ["u8", "u16", "u32", "i8", "i16", "i32", "f32", "f64", "bool", "string", "vector", "Player"];
 const OPT_KEYS = ["channel", "server_output", "client_output"];
 
 function linePrefix(document, position) {

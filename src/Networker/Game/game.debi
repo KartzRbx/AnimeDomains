@@ -1,8 +1,14 @@
--- Debi Game channel (main gameplay networking)
+-----------------------------------------
+--- << GAME CHANNEL >> ---
+-----------------------------------------
 
 opt channel = "Game"
 opt server_output = "src/Networker/Game/Server.luau"
 opt client_output = "src/Networker/Game/Client.luau"
+
+-----------------------------------------
+--- << TYPES / CORE >> ---
+-----------------------------------------
 
 type Vec3Data = struct {
 	X: f32,
@@ -10,7 +16,9 @@ type Vec3Data = struct {
 	Z: f32,
 }
 
-
+-----------------------------------------
+--- << TYPES / MATCH >> ---
+-----------------------------------------
 
 type TowerInfo = struct {
 	Id: string,
@@ -38,10 +46,40 @@ type EntityState = struct {
 	Two: TeamData,
 }
 
+type MatchEnergy = struct {
+	Current: f32,
+	Max: f32,
+}
+
+-----------------------------------------
+--- << TYPES / CARDS >> ---
+-----------------------------------------
+
 type PlaceUnitRequest = struct {
 	CardId: string,
+	SlotIndex: u8,
 	Position: Vec3Data,
 }
+
+type CardHandState = struct {
+	Hand: string[],
+	NextCard: string,
+}
+
+
+type SpawnEntityInMapFromServerType = struct {
+	CardId: string,
+	Ready: bool,
+	Attacking: bool,
+	Player: Player,
+	Position: Vec3Data,
+}
+
+type CardID = string
+
+-----------------------------------------
+--- << TYPES / UNITS >> ---
+-----------------------------------------
 
 type UnitState = struct {
 	NetId: u32,
@@ -60,10 +98,9 @@ type UnitUpdate = struct {
 	Moving: bool,
 }
 
-type MatchEnergy = struct {
-	Current: f32,
-	Max: f32,
-}
+-----------------------------------------
+--- << EVENTS / ENERGY >> ---
+-----------------------------------------
 
 event FetchPlayerEnergy = {
 	from: Server,
@@ -72,6 +109,17 @@ event FetchPlayerEnergy = {
 	data: (energy: f32),
 }
 
+event SetEnergy = {
+	from: Server,
+	type: Unreliable,
+	call: SingleAsync,
+	data: (energy: MatchEnergy),
+}
+
+-----------------------------------------
+--- << EVENTS / CARDS >> ---
+-----------------------------------------
+
 event PutCardInPlace = {
 	from: Client,
 	type: Reliable,
@@ -79,6 +127,22 @@ event PutCardInPlace = {
 	data: (payload: PlaceUnitRequest),
 }
 
+event SyncCardHand = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	data: (state: CardHandState),
+}
+
+event SpawnEntityInMapFromServer = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	data: (payload: SpawnEntityInMapFromServerType),
+}
+-----------------------------------------
+--- << EVENTS / MATCH >> ---
+-----------------------------------------
 
 event SetEntityState = {
 	from: Server,
@@ -87,14 +151,9 @@ event SetEntityState = {
 	data: (state: EntityState),
 }
 
-
-event SetEnergy = {
-	from: Server,
-	type: Unreliable,
-	call: SingleAsync,
-	data: (energy: MatchEnergy),
-}
-
+-----------------------------------------
+--- << EVENTS / UNITS >> ---
+-----------------------------------------
 
 event AddUnit = {
 	from: Server,

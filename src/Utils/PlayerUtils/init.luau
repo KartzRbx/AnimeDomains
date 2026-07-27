@@ -2,6 +2,7 @@
 -- Behavior: resolves PlayerGui instances by path (e.g. "Main/Container/Gameplay")
 
 local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
 
 local Types = require(script.Types)
 
@@ -33,11 +34,46 @@ function PlayerUtils.getPlayerGui(player: Player?): PlayerGui
 	return resolvePlayer(player):WaitForChild("PlayerGui") :: PlayerGui
 end
 
+-- Ensures StarterGui.Main is in PlayerGui (waits character when ResetOnSpawn delays clone).
+function PlayerUtils.waitMain(player: Player?): ScreenGui
+	local resolved = resolvePlayer(player)
+	local playerGui = PlayerUtils.getPlayerGui(resolved)
+
+	local existing = playerGui:FindFirstChild("Main")
+	if existing and existing:IsA("ScreenGui") then
+		return existing
+	end
+
+	if not resolved.Character then
+		resolved.CharacterAdded:Wait()
+	end
+
+	existing = playerGui:FindFirstChild("Main")
+	if existing and existing:IsA("ScreenGui") then
+		return existing
+	end
+
+	local starterMain = StarterGui:FindFirstChild("Main")
+	if starterMain and starterMain:IsA("ScreenGui") then
+		local clone = starterMain:Clone()
+		clone.Parent = playerGui
+		return clone
+	end
+
+	return playerGui:WaitForChild("Main") :: ScreenGui
+end
+
 -- Yield until each segment exists. E.g. "Main/Container/Gameplay/CardsContainer"
 function PlayerUtils.wait(path: InterfacePath, player: Player?, timeout: number?): Instance
+	local parts = splitPath(path)
 	local current: Instance = PlayerUtils.getPlayerGui(player)
 
-	for _, name in splitPath(path) do
+	for index, name in parts do
+		if index == 1 and name == "Main" then
+			current = PlayerUtils.waitMain(player)
+			continue
+		end
+
 		local child = if timeout ~= nil then current:WaitForChild(name, timeout) else current:WaitForChild(name)
 		assert(child, `[PlayerUtils] Timed out at '{name}' in path: {path}`)
 		current = child

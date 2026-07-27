@@ -82,10 +82,11 @@ const tree = {
         Constants: { $className: "Folder", $path: "src/Constants" },
         Classes: { $className: "Folder", $path: "src/Classes" },
         Modules: { $className: "Folder", $path: "src/Modules" },
-        // Debi Networker fully replicated — Server/Client gated by RunService in generated modules + Net.luau
+        // Debi Networker — typed entries: NetClient (client) / NetServer (server)
         Networker: {
           $className: "Folder",
-          Net: { $path: "src/Networker/Net.luau" },
+          NetClient: { $path: "src/Networker/NetClient.luau" },
+          NetServer: { $path: "src/Networker/NetServer.luau" },
           Game: {
             $className: "Folder",
             Client: { $path: "src/Networker/Game/Client.luau" },

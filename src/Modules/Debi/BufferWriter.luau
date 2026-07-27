@@ -1,5 +1,5 @@
 --!strict
--- Debi BufferWriter — layout fixo estilo Zap
+-- Debi BufferWriter — fixed layout (Zap-style)
 
 const BufferWriter = {}
 BufferWriter.__index = BufferWriter
@@ -15,8 +15,8 @@ export type BufferWriter = typeof(setmetatable(
 
 const INITIAL = 64
 
-local function ensure(self: BufferWriter, extra: number)
-	local needed = self.cursor + extra
+const function ensure(self: BufferWriter, extra: number)
+	const needed = self.cursor + extra
 	if needed <= self.capacity then
 		return
 	end

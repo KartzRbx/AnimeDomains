@@ -4,9 +4,9 @@ const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 const GameplayTypes = require(script.Parent.GameplayTypes)
-const Debi = require(ReplicatedStorage.Shareds.Networker.Net).Game
+const Debi = require(ReplicatedStorage.Shareds.Networker.NetClient).Game
 
-local GameplayServiceClient = {
+const GameplayServiceClient = {
 	Initialized = false,
 	Player = nil :: Player?,
 	PlayerGui = nil :: PlayerGui?,

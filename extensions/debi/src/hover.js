@@ -27,6 +27,7 @@ const DOCS = {
 	bool: "Boolean (1 byte).",
 	string: "UTF-8 string (`u16` length + bytes).",
 	vector: "`vector(f32, f32, f32)` packed components.",
+	Player: "Roblox `Player` — writes `UserId` (`f64`), reads via `Players:GetPlayerByUserId` (`Player?`).",
 	channel: "Remote channel name under `_debi/<channel>`.",
 	server_output: "Path for generated Server.luau.",
 	client_output: "Path for generated Client.luau.",

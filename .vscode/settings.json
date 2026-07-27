@@ -3,6 +3,9 @@
 	"files.associations": {
 		"*.debi": "debi"
 	},
+	"[debi]": {
+		"editor.semanticHighlighting.enabled": false
+	},
 	"workbench.editor.customLabels.patterns": {
 		"**/init.lua": "${dirname} (${filename}.${extname})",
 		"**/init.luau": "${dirname} (${filename}.${extname})",

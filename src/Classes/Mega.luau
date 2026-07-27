@@ -1,11 +1,9 @@
 --!strict
--- Behavior: facade — EntityHelp + World + jecs in a single require
--- Note: do NOT require primitives here (ID etc.) — avoids Mega ↔ ID cycle
+-- Behavior: facade — World + jecs (EntityHelper fica em Workers, sem ciclo)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local jecs = require(ReplicatedStorage.Packages.jecs)
 
-local EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 local World = jecs.World.new(true)
 
 local Utils = {
@@ -22,7 +20,6 @@ local Utils = {
 }
 
 return {
-	Entitys = EntityHelper,
 	World = World,
 	Jecs = jecs,
 	Utils = Utils,

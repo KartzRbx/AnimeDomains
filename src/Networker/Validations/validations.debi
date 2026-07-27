@@ -1,5 +1,15 @@
--- Debi Validations channel (server-side validation RPCs / checks)
+-----------------------------------------
+--- << VALIDATIONS CHANNEL >> ---
+-----------------------------------------
 
 opt channel = "Validations"
 opt server_output = "src/Networker/Validations/Server.luau"
 opt client_output = "src/Networker/Validations/Client.luau"
+
+-----------------------------------------
+--- << TYPES >> ---
+-----------------------------------------
+
+-----------------------------------------
+--- << EVENTS >> ---
+-----------------------------------------

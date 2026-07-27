@@ -1,5 +1,5 @@
 --!strict
--- Debi BufferReader — layout fixo estilo Zap
+-- Debi BufferReader — fixed layout (Zap-style)
 
 const BufferReader = {}
 BufferReader.__index = BufferReader
@@ -13,11 +13,11 @@ export type BufferReader = typeof(setmetatable(
 	BufferReader
 ))
 
-local function remaining(self: BufferReader): number
+const function remaining(self: BufferReader): number
 	return self.len - self.cursor
 end
 
-local function need(self: BufferReader, n: number)
+const function need(self: BufferReader, n: number)
 	assert(remaining(self) >= n, "[Debi] buffer underrun")
 end
 
