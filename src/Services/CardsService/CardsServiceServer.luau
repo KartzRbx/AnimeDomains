@@ -3,9 +3,11 @@
 
 const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const Workspace = game:GetService("Workspace")
 
 const Debi = require(ReplicatedStorage.Shareds.Networker.NetServer).Game
-const CardsEntityManager = require(ReplicatedStorage.Shareds.Services.CardsService.CardsEntityManager)
+const NetServer = require(ReplicatedStorage.Shareds.Networker.NetServer)
+const CardsEntityManager = require(ReplicatedStorage.Shareds.Services.CardsService.Api.CardsEntityManager)
 const EnergyService = require(script.Parent.EnergyService)
 const CardsServiceType = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceType)
 const CardsServiceUtils = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceUtils)
@@ -16,6 +18,8 @@ local CardServiceServer = {
 	Initialized = false,
 	PlayerHands = {} :: { [Player]: CardsServiceUtils.MatchCardState },
 }
+
+const EntityFolder = Workspace:FindFirstChild('Game'):FindFirstChild('_Entitys')
 
 export type CardServiceServer = typeof(CardServiceServer)
 
@@ -117,7 +121,7 @@ function CardServiceServer.PutCardInPlace(
 		return
 	end
 
-		--[[
+	--[[
 			  00:10:09.848   ▼  {
                     ["CardId"] = "PlaceholderFour",
                     ["Position"] =  ▼  {
@@ -143,6 +147,29 @@ function CardServiceServer.PutCardInPlace(
 	syncHand(self, player)
 end
 
+function CardServiceServer.StateChangeReadyForUID(self: CardServiceServer, ownerPlayer: Player, UID: string, CardId: string):()
+	assert(UID, 'Invalid UID')
+	assert(CardId, 'Invalid CardID')
+
+	const EntityModel = EntityFolder:FindFirstChild(('%s_%s'):format(ownerPlayer.Name, UID))
+	if not EntityModel then 
+		error('Entity Model not found in Folder models', 1)
+		return
+	end
+
+	if EntityModel:GetAttribute('Owner') ~= ownerPlayer.Name then 
+		return
+	end
+
+	if not EntityModel:GetAttribute('UID') or EntityModel:GetAttribute('UID') ~= UID then 
+		error('Entity model isnt registered')
+		return
+	end
+
+	EntityModel:SetAttribute('Ready', true)
+	return
+end
+
 function CardServiceServer.Init(self: CardServiceServer): CardServiceServer
 	if self.Initialized then
 		return self
@@ -154,6 +181,11 @@ function CardServiceServer.Init(self: CardServiceServer): CardServiceServer
 	Debi.PutCardInPlace.SetCallback(function(player: Player, payload)
 		self:PutCardInPlace(player, payload)
 	end)
+
+	NetServer.Validations.CutsceneCompleted.SetCallback(function(player: Player, UID: string, CardID: string)
+		self:StateChangeReadyForUID(player, UID, CardID)
+	end)
+	
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		self:ClearPlayerHand(player)

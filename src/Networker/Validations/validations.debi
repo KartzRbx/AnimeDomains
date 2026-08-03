@@ -13,3 +13,10 @@ opt client_output = "src/Networker/Validations/Client.luau"
 -----------------------------------------
 --- << EVENTS >> ---
 -----------------------------------------
+
+event CutsceneCompleted = {
+    from: Client,
+    type: Reliable,
+    call: SingleAsync,
+    data: (UID: string, CardID: string),
+}

@@ -10,6 +10,46 @@ export type PlaceUnitRequest = {
 	Position: GameplayTypes.Vec3Data,
 }
 
+export type UnitBillboard = BillboardGui & {
+	CrownDisplay: Frame & {
+		CrownIcon: ImageLabel & {
+			UIAspectRatioConstraint: UIAspectRatioConstraint,
+		},
+		TowerLevelValue: TextLabel & {
+			UIGradient: UIGradient,
+			UIShadow: UIShadow,
+			UIStroke: UIStroke,
+		},
+	},
+	HealthDisplay: Frame & {
+		CrownIcon: ImageLabel & {
+			UIAspectRatioConstraint: UIAspectRatioConstraint,
+		},
+		HealthBar: Frame & {
+			Bar: Frame & {
+				UIGradient: UIGradient,
+			},
+			UIStroke: UIStroke,
+		},
+		HealthInfoContainer: Frame & {
+			HealthIcon: ImageLabel & {
+				UIAspectRatioConstraint: UIAspectRatioConstraint,
+			},
+			TowerHealth: TextLabel & {
+				UIGradient: UIGradient,
+				UIStroke: UIStroke,
+			},
+			UIListLayout: UIListLayout,
+		},
+		TowerLevelValue: TextLabel & {
+			UIGradient: UIGradient,
+			UIShadow: UIShadow,
+			UIStroke: UIStroke,
+		},
+	},
+	UIListLayout: UIListLayout,
+}
+
 export type TemplateCard = Frame & {
 	Card: ImageButton & {
 		Background: CanvasGroup & {
@@ -104,18 +144,6 @@ export type GameplayHud = Frame & {
 	UIStroke: UIStroke,
 }
 
---[[
-	 00:10:09.848   ▼  {
-                    ["CardId"] = "PlaceholderFour",
-                    ["Position"] =  ▼  {
-                       ["X"] = 211.2488250732422,
-                       ["Y"] = 54.8416633605957,
-                       ["Z"] = 133.9837341308594
-                    },
-                    ["SlotIndex"] = 1
-                 }  -  Servidor - CardsEntityManager:10
-]]
-
 export type NewEntityCardData = {
 	CardId: string,
 	Position: GameplayTypes.Vec3Data,
@@ -154,13 +182,28 @@ export type Clock = Model & {
 	},
 }
 
+-- Basic unit/character rig (Humanoid + HRP)
+export type UnitRig = Model & {
+	Humanoid: Humanoid & {
+		Animator: Animator,
+	},
+	HumanoidRootPart: BasePart & {
+		RootAttachment: Attachment?,
+	},
+}
+
 -- Mirrors Debi SpawnEntityInMapFromServerType (network payload + local entry)
 export type CardEntityEntry = {
+	UID: string,
 	CardId: string,
 	Ready: boolean,
 	Attacking: boolean,
+	Idle: AnimationTrack?,
+	Walk: AnimationTrack?,
+	Deploytime: number,
 	Player: Player,
 	Position: GameplayTypes.Vec3Data,
+	Model: Model?,
 }
 
 export type CardEntityMap = { [string]: CardEntityEntry }

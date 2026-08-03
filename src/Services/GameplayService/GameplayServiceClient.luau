@@ -3,6 +3,7 @@
 const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+const CardsServiceInterface = require(ReplicatedStorage.Shareds.Services.CardsService.Interface.CardsServiceInterface)
 const GameplayTypes = require(script.Parent.GameplayTypes)
 const Debi = require(ReplicatedStorage.Shareds.Networker.NetClient).Game
 
@@ -28,11 +29,7 @@ function GameplayServiceClient.SetEntityState(self: GameplayServiceClient, state
 	self.EntityState = state
 	self:EnableGameplayInterface()
 
-	const CardsServiceClient = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceClient)
-	CardsServiceClient:OnEntityState(state)
-
-	print("[GameplayServiceClient] Entity state received")
-	print(state)
+	CardsServiceInterface:OnEntityState(state)
 end
 
 function GameplayServiceClient.EnableGameplayInterface(self: GameplayServiceClient)
@@ -50,12 +47,11 @@ end
 
 function GameplayServiceClient.SetEnergy(self: GameplayServiceClient, energy: GameplayTypes.MatchEnergy): ()
 	self.Energy = energy
-	print("[GameplayServiceClient] Energy:", energy.Current, "/", energy.Max)
+	
 end
 
 function GameplayServiceClient.AddUnit(self: GameplayServiceClient, unit: GameplayTypes.UnitState): ()
 	self.Units[unit.NetId] = unit
-	print("[GameplayServiceClient] Unit spawned:", unit.CardId)
 end
 
 function GameplayServiceClient.UpdateUnit(self: GameplayServiceClient, unit: GameplayTypes.UnitUpdate): ()
@@ -72,7 +68,7 @@ end
 
 function GameplayServiceClient.RemoveUnit(self: GameplayServiceClient, netId: number): ()
 	self.Units[netId] = nil
-	print("[GameplayServiceClient] Unit removed:", netId)
+	
 end
 
 function GameplayServiceClient.Init(self: GameplayServiceClient): GameplayServiceClient

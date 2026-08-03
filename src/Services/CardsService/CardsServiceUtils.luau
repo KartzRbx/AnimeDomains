@@ -4,15 +4,28 @@
 const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 const RunService = game:GetService("RunService")
-const Workspace = game:GetService("Workspace")
+const CardsCutscenes = require(script.Parent.Api.CardsCutscenes)
 const DataServiceV2 = require(ReplicatedStorage.Shareds.Workers.DataServiceV2)
+const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
 
 const HAND_SIZE = 4
 const TARGET_CYCLE_SIZE = 8
 
+export type CardData = {
+	Id: string,
+	Level: number,
+	Count: number?,
+}
 
-export type CardData = { Id: string, Level: number }
+-- Lookup from player save (Paths.Game.Cards)
+export type PlayerCardData = {
+	UID: string,
+	Id: string,
+	Level: number,
+	Count: number,
+	Kind: CardKind,
+}
 
 export type MatchCardState = {
 	Hand: { string },
@@ -24,6 +37,8 @@ const CardsServiceUtils = {
 	HAND_SIZE = HAND_SIZE,
 	TARGET_CYCLE_SIZE = TARGET_CYCLE_SIZE,
 }
+
+export type CardKind = "Unit" | "Tower"
 
 local function copyList(source: { string }): { string }
 	local copy = table.create(#source)
@@ -131,48 +146,38 @@ function CardsServiceUtils.ToSyncPayload(state: MatchCardState): { Hand: { strin
 	}
 end
 
-function CardsServiceUtils._GetCardDataWithID(CardId: string, toPlayer: Player?): (string?, CardData?)
+function CardsServiceUtils._GetCardDataWithID(CardId: string, toPlayer: Player?): PlayerCardData?
 	const Paths = DataServiceV2.Paths
 
-	local resultUID: string? = nil
-	local resultCardData: CardData? = nil
+	local cardsMap: { [string]: any }? = nil
 
 	if RunService:IsClient() and Players.LocalPlayer then
 		const DataService = DataServiceV2.Client
 		const data = DataService:WaitForData()
-		const Cards = data:Get(Paths.Game.Cards)
-
-		for UID, cardData in Cards do
-			if cardData.Id == CardId then
-				resultUID = UID
-				resultCardData = cardData
-				break
-			end
-		end
+		cardsMap = data:Get(Paths.Game.Cards)
 	else
 		assert(toPlayer, "[CardsServiceUtils] toPlayer required on server")
 		const Data = DataServiceV2.Server:WaitFor(toPlayer)
-		const Cards = Data:Get(Paths.Game.Cards)
+		cardsMap = Data:Get(Paths.Game.Cards)
+	end
 
-		for UID, cardData in Cards do
-			if cardData.Id == CardId then
-				resultUID = UID
-				resultCardData = cardData
-				break
-			end
+	if not cardsMap then
+		return nil
+	end
+
+	for UID, cardData in cardsMap do
+		if cardData.Id == CardId then
+			const result: PlayerCardData = {
+				UID = UID,
+				Id = cardData.Id,
+				Level = cardData.Level,
+				Count = cardData.Count or 0,
+				Kind = "Unit",
+			}
+			return result
 		end
 	end
 
-	return resultUID, resultCardData
-end
-
-local function getTeamsRoot(): Folder?
-	local gameFolder = Workspace:FindFirstChild("Game")
-	local gameplay = gameFolder and gameFolder:FindFirstChild("Gameplay")
-	local teams = gameplay and gameplay:FindFirstChild("Teams")
-	if teams and teams:IsA("Folder") then
-		return teams
-	end
 	return nil
 end
 
@@ -191,37 +196,22 @@ function CardsServiceUtils.GetPlayerTeam(player: Player): PlacementZoneUtils.Tea
 	return nil
 end
 
-function CardsServiceUtils.GetEnemyMainTowerPosition(teamName: PlacementZoneUtils.TeamName): Vector3?
-	local enemy = PlacementZoneUtils.GetEnemyTeam(teamName)
-	local teamsRoot = getTeamsRoot()
-	local teamFolder = teamsRoot and teamsRoot:FindFirstChild(enemy)
-	local towers = teamFolder and teamFolder:FindFirstChild("Towers")
-	local mainTower = towers and towers:FindFirstChild("MainTower")
-	if not mainTower then
-		return nil
+function CardsServiceUtils.GetEntityLookCFrame(player: Player, spawnPos: Vector3): CFrame
+	local teamName = CardsServiceUtils.GetPlayerTeam(player)
+	local enemyTowerPosition = teamName and EntityHelper.GetEnemyTowerPosition(teamName, spawnPos)
+	if enemyTowerPosition then
+		return CFrame.lookAt(
+			spawnPos,
+			Vector3.new(enemyTowerPosition.X, spawnPos.Y, enemyTowerPosition.Z)
+		)
 	end
-
-	local grip = mainTower:FindFirstChild("GripEntity", true)
-	if grip and grip:IsA("Attachment") then
-		return grip.WorldPosition
-	end
-
-	if mainTower:IsA("Model") then
-		return mainTower:GetPivot().Position
-	end
-	if mainTower:IsA("BasePart") then
-		return mainTower.Position
-	end
-
-	return nil
+	return CFrame.new(spawnPos)
 end
 
-function CardsServiceUtils.GetEnemyTowerPosition(player: Player): Vector3?
-	local teamName = CardsServiceUtils.GetPlayerTeam(player)
-	if not teamName then
-		return nil
-	end
-	return CardsServiceUtils.GetEnemyMainTowerPosition(teamName)
+function CardsServiceUtils.GetEntityGoalCFrame(player: Player, spawnPos: Vector3, model: Model): CFrame
+	const lookCFrame = CardsServiceUtils.GetEntityLookCFrame(player, spawnPos)
+	const floorOffset = CardsCutscenes:GetEntityFloorOffset(model)
+	return lookCFrame * CFrame.new(0, floorOffset, 0)
 end
 
 return CardsServiceUtils

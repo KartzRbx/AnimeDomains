@@ -13,11 +13,17 @@
           "$className": "Folder",
           "CardsService": {
             "$className": "Folder",
-            "CardsCutscenes": {
-              "$path": "src/Services/CardsService/CardsCutscenes.luau"
-            },
-            "CardsEntityManager": {
-              "$path": "src/Services/CardsService/CardsEntityManager.luau"
+            "Api": {
+              "$className": "Folder",
+              "CardsCutscenes": {
+                "$path": "src/Services/CardsService/Api/CardsCutscenes.luau"
+              },
+              "CardsEntityManager": {
+                "$path": "src/Services/CardsService/Api/CardsEntityManager.luau"
+              },
+              "PreviewModelManager": {
+                "$path": "src/Services/CardsService/Api/PreviewModelManager.luau"
+              }
             },
             "CardsServiceClient": {
               "$path": "src/Services/CardsService/CardsServiceClient.luau"
@@ -30,6 +36,9 @@
             },
             "Interface": {
               "$className": "Folder",
+              "CardsServiceInterface": {
+                "$path": "src/Services/CardsService/Interface/CardsServiceInterface.luau"
+              },
               "Components": {
                 "$className": "Folder",
                 "CardLayout": {
@@ -45,9 +54,6 @@
                   "$path": "src/Services/CardsService/Interface/Lib/ShineLib.luau"
                 }
               }
-            },
-            "PreviewModelManager": {
-              "$path": "src/Services/CardsService/PreviewModelManager.luau"
             }
           },
           "EnergyService": {
@@ -169,6 +175,12 @@
         },
         "Handlers": {
           "$className": "Folder",
+          "AttackState": {
+            "$className": "Folder",
+            "CombateStateHandler": {
+              "$path": "src/Handlers/AttackState/CombateStateHandler.server.luau"
+            }
+          },
           "Cmdr": {
             "$className": "Folder",
             "Commands": {

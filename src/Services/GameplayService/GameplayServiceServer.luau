@@ -305,7 +305,7 @@ function GameplayServiceServer.StartMatch(
 		end
 	end
 
-	print("[GameplayService] Match started:", matchId, props.GameConfig.MapId, props.GameConfig.GameMode)
+	--print("[GameplayService] Match started:", matchId, props.GameConfig.MapId, props.GameConfig.GameMode)
 	return match
 end
 
@@ -400,7 +400,7 @@ function GameplayServiceServer.OnEnemyTowerDestroyed(
 	towerSide: PlacementZoneUtils.LaneName
 )
 	PlacementZoneUtils.UnlockEnemyLane(attackerTeam, towerSide)
-	print(`[GameplayService] Zone unlocked | team={attackerTeam} lane={towerSide}`)
+	--print(`[GameplayService] Zone unlocked | team={attackerTeam} lane={towerSide}`)
 end
 
 function GameplayServiceServer.GetMatchByPlayer(
@@ -435,7 +435,7 @@ function GameplayServiceServer.EndMatch(self: GameplayServiceServer, matchId: Ga
 	end
 
 	self.Matches[matchId] = nil
-	print("[GameplayService] Match finished:", matchId)
+	--print("[GameplayService] Match finished:", matchId)
 
 	return true
 end

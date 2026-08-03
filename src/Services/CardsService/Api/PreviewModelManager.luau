@@ -8,14 +8,12 @@ const TweenService = game:GetService("TweenService")
 const UserInputService = game:GetService("UserInputService")
 const Workspace = game:GetService("Workspace")
 
-const CardsServiceType = require(script.Parent.CardsServiceType)
-const CardsServiceUtils = require(script.Parent.CardsServiceUtils)
+const CardsServiceType = require(script.Parent.Parent.CardsServiceType)
+const CardsServiceUtils = require(script.Parent.Parent.CardsServiceUtils)
 const Janitor = require(ReplicatedStorage.Packages.janitor)
-const Model = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Model)
 const CardLayout = require(ReplicatedStorage.Shareds.Services.CardsService.Interface.Components.CardLayout)
 const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const AssetsUtils = require(ReplicatedStorage.Shareds.Utils.AssetsUtils)
-const CollisionGroupUtil = require(ReplicatedStorage.Shareds.Utils.CollisionGroupUtil)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
 
 const SHOW_TRANSPARENCY = 0
@@ -89,7 +87,6 @@ const function stripPreviewCollision(model: Model)
 			descendant.CanCollide = false
 			descendant.CanTouch = false
 			descendant.CanQuery = false
-		
 			descendant.Massless = true
 		elseif descendant:IsA("Humanoid") then
 			descendant.PlatformStand = true
@@ -99,8 +96,6 @@ const function stripPreviewCollision(model: Model)
 			descendant:Destroy()
 		end
 	end
-
-	CollisionGroupUtil.AssignEntity(model)
 end
 
 const function makePreviewModel(handle: CardLayout.CardHandle): Model
@@ -117,7 +112,7 @@ const function makePreviewModel(handle: CardLayout.CardHandle): Model
 	effects.Name = "PreviewEffects"
 	effects.Parent = model
 
-	local _, CardData = CardsServiceUtils._GetCardDataWithID(data.Id)
+	local CardData = CardsServiceUtils._GetCardDataWithID(data.Id)
 
 	local highlight = effects:FindFirstChildOfClass("Highlight")
 	if highlight then
@@ -268,9 +263,6 @@ function PreviewModelManager.onBindRaycast(
 	local lastPosition: Vector3? = nil
 	local Track: AnimationTrack? = nil
 
-
-	
-
 	session:add(function()
 		hideEnemyOverlay(overlay)
 	end, true)
@@ -292,6 +284,11 @@ function PreviewModelManager.onBindRaycast(
 	if limitations then
 		table.insert(excludeList, limitations)
 	end
+	local gameFolder = Workspace:FindFirstChild("Game")
+	local entitysFolder = gameFolder and gameFolder:FindFirstChild("_Entitys")
+	if entitysFolder then
+		table.insert(excludeList, entitysFolder)
+	end
 	params.FilterDescendantsInstances = excludeList
 
 	session:add(RunService.Heartbeat:Connect(function(_deltaTime: number)
@@ -311,11 +308,15 @@ function PreviewModelManager.onBindRaycast(
 
 		lastPosition = result.Position
 		movePreview(previewModel, result.Position, enemyTowerPos)
-		const animator = AnimationUtil.PrepareModel(previewModel)
-		if animator and not Track then
-			Track = animator:LoadAnimation(WALK_ANIMATION_TRACK)
-			if Track then
-				Track:Play(0.1)
+
+		if not Track then
+			const animator = AnimationUtil.PrepareModel(previewModel)
+			stripPreviewCollision(previewModel)
+			if animator then
+				Track = animator:LoadAnimation(WALK_ANIMATION_TRACK)
+				if Track then
+					Track:Play(0.1)
+				end
 			end
 		end
 

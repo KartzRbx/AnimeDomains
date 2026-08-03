@@ -27,6 +27,7 @@ local remotes: Remotes.DebiRemotes? = nil
 local flushing = false
 local packetCounts: { [Player]: { count: number, resetAt: number } } = {}
 
+local CutsceneCompleted_callback: ((player: Player, UID: string, CardID: string) -> ())? = nil
 
 const function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Player): BufferWriter.BufferWriter
 	local q = map[player]
@@ -83,6 +84,16 @@ const function dispatchClient(player: Player, buf: buffer)
 				return
 			end
 			const id = r:readu8()
+			if id == 1 then
+				const UID = r:readstring()
+				const CardID = r:readstring()
+				const cb = CutsceneCompleted_callback
+				if cb then
+					task.spawn(cb, player, UID, CardID)
+				end
+				continue
+			end
+			-- unknown / Server-only ids: drop silently
 			return
 		end
 	end)
@@ -103,6 +114,11 @@ const function handleIncoming(player: Player, payload: unknown, maxBytes: number
 end
 
 const Debi = {}
+
+Debi.CutsceneCompleted = Debi.CutsceneCompleted or {}
+function Debi.CutsceneCompleted.SetCallback(cb: (player: Player, UID: string, CardID: string) -> ())
+	CutsceneCompleted_callback = cb
+end
 
 function Debi.Flush()
 	flushAll()

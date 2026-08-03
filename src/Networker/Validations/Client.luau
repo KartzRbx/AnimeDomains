@@ -47,6 +47,15 @@ end
 
 const Debi = {}
 
+Debi.CutsceneCompleted = {}
+
+function Debi.CutsceneCompleted.Fire(UID: string, CardID: string)
+	const w = reliableWriter
+	w:writeu8(1)
+	w:writestring(UID)
+	w:writestring(CardID)
+end
+
 function Debi.Flush()
 	flushAll()
 end

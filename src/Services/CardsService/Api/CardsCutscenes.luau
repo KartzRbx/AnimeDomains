@@ -10,7 +10,7 @@ const Workspace = game:GetService("Workspace")
 
 const Janitor = require(ReplicatedStorage.Packages.janitor)
 const signal = require(ReplicatedStorage.Packages.signal)
-const CardsServiceType = require(script.Parent.CardsServiceType)
+const CardsServiceType = require(script.Parent.Parent.CardsServiceType)
 const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const AssetsUtils = require(ReplicatedStorage.Shareds.Utils.AssetsUtils)
 const MathUtils = require(ReplicatedStorage.Shareds.Utils.MathUtils)
@@ -327,6 +327,8 @@ function CardServiceCutscenes.SpawnEntityInPosition(
 		local events = self.ClockTimeEffect(Entity, deployTime)
 
 		events.Completed:Connect(function(...)
+			IdleTrack:Stop(0.1)
+			IdleTrack:Destroy()
 			__call.Completed:Fire()
 		end)
 	end), "Disconnect", GOAL_POSITION_JANITOR_TAG)

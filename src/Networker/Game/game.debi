@@ -68,9 +68,11 @@ type CardHandState = struct {
 
 
 type SpawnEntityInMapFromServerType = struct {
+	UID: string,
 	CardId: string,
 	Ready: bool,
 	Attacking: bool,
+	Deploytime: f32,
 	Player: Player,
 	Position: Vec3Data,
 }
@@ -140,6 +142,7 @@ event SpawnEntityInMapFromServer = {
 	call: SingleAsync,
 	data: (payload: SpawnEntityInMapFromServerType),
 }
+
 -----------------------------------------
 --- << EVENTS / MATCH >> ---
 -----------------------------------------

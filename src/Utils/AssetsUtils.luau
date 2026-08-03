@@ -15,9 +15,10 @@
 	├── Animations/
 	│   ├── Player/...
 	│   └── Gameplay/Entitys/
-	│       ├── _Universal/ Idle, Walk
 	│       ├── Tower/<Id>/ Attack, ...
-	│       └── Units/<Id>/ ...
+	│       └── Units/
+	│           ├── _Universal/ Idle, Walk
+	│           └── <Id>/ ...
 	├── Effects/
 	│   └── Gameplay/Entitys/SpawnEffect
 	└── Sounds/
@@ -56,6 +57,7 @@ export type AssetsUtils = {
 	getSound: (soundName: SoundName) -> Instance,
 	getAnimation: (animationName: AnimationName) -> Instance,
 	getEntityAnimation: (kind: EntityKind, entityId: EntityId, animName: AnimName) -> Animation,
+	GetDefaultEntityAnimation: (animationName: AnimationName) -> Animation,
 	getEffect: (effectName: EffectName) -> Instance,
 	getGameplayEntityEffect: (effectName: EffectName) -> Instance,
 	getGameplayEffectSound: (soundName: SoundName) -> Sound,
@@ -95,6 +97,18 @@ const function getEntityAnimsRoot(): Folder
 	local animations = waitFolder(getAssetsRoot(), "Animations")
 	local gameplay = waitFolder(animations, "Gameplay")
 	return waitFolder(gameplay, "Entitys")
+end
+
+const function getUniversalAnimsFolder(): Folder
+	local entitys = getEntityAnimsRoot()
+	local units = entitys:FindFirstChild("Units")
+	if units and units:IsA("Folder") then
+		local underUnits = units:FindFirstChild("_Universal")
+		if underUnits and underUnits:IsA("Folder") then
+			return underUnits
+		end
+	end
+	return waitFolder(entitys, "_Universal")
 end
 
 -- Miscs/<category>/<template>
@@ -147,14 +161,14 @@ function AssetsUtils.getSound(soundName: SoundName): Instance
 	return findTemplate(sounds, soundName, "Assets/Sounds")
 end
 
-function AssetsUtils.getAnimation(animationName: AnimationName): Instance
+function AssetsUtils.getAnimation(animationName: AnimationName): Animation
 	local animations = waitFolder(getAssetsRoot(), "Animations")
 	return findTemplate(animations, animationName, "Assets/Animations")
 end
 
 --[[
 	Resolve: Entitys/Tower|<Units>/<Id>/<Anim> if present,
-	else Entitys/_Universal/<Anim> (shared Idle/Walk).
+	else Entitys/Units/_Universal/<Anim> (shared Idle/Walk).
 	Note: Units folder (plural) under Animations; Unit (singular) under Models.
 ]]
 function AssetsUtils.getEntityAnimation(kind: EntityKind, entityId: EntityId, animName: AnimName): Animation
@@ -172,10 +186,17 @@ function AssetsUtils.getEntityAnimation(kind: EntityKind, entityId: EntityId, an
 		end
 	end
 
-	local universal = waitFolder(entitys, "_Universal")
-	local fallback = findTemplate(universal, animName, "Assets/Animations/Gameplay/Entitys/_Universal")
+	local universal = getUniversalAnimsFolder()
+	local fallback = findTemplate(universal, animName, "Assets/Animations/Gameplay/Entitys/Units/_Universal")
 	assert(fallback:IsA("Animation"), `Universal anim missing: {animName}`)
 	return fallback
+end
+
+function AssetsUtils.GetDefaultEntityAnimation(animationName: AnimationName): Animation
+	local universal = getUniversalAnimsFolder()
+	local template = findTemplate(universal, animationName, "Assets/Animations/Gameplay/Entitys/Units/_Universal")
+	assert(template:IsA("Animation"), `Default entity anim missing: {animationName}`)
+	return template
 end
 
 function AssetsUtils.getEffect(effectName: EffectName): Instance

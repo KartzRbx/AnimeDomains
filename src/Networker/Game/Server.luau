@@ -207,17 +207,21 @@ const function readCardHandState(r: BufferReader.BufferReader): CardHandState
 end
 
 export type SpawnEntityInMapFromServerType = {
+	UID: string,
 	CardId: string,
 	Ready: boolean,
 	Attacking: boolean,
+	Deploytime: number,
 	Player: Player?,
 	Position: Vec3Data,
 }
 
 const function writeSpawnEntityInMapFromServerType(w: BufferWriter.BufferWriter, value: SpawnEntityInMapFromServerType)
+	w:writestring(value.UID)
 	w:writestring(value.CardId)
 	w:writebool(value.Ready)
 	w:writebool(value.Attacking)
+	w:writef32(value.Deploytime)
 	do
 		assert(typeof(value.Player) == "Instance" and value.Player:IsA("Player"), "[Debi] expected Player")
 		w:writef64(value.Player.UserId)
@@ -227,9 +231,11 @@ end
 
 const function readSpawnEntityInMapFromServerType(r: BufferReader.BufferReader): SpawnEntityInMapFromServerType
 	const value: SpawnEntityInMapFromServerType = {} :: any
+	value.UID = r:readstring()
 	value.CardId = r:readstring()
 	value.Ready = r:readbool()
 	value.Attacking = r:readbool()
+	value.Deploytime = r:readf32()
 	value.Player = Players:GetPlayerByUserId(r:readf64())
 	value.Position = readVec3Data(r)
 	return value
