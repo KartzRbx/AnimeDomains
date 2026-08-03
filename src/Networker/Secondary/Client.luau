@@ -13,12 +13,26 @@ const CHANNEL = "Secondary"
 
 assert(RunService:IsClient(), "[Debi/Secondary] Client.luau can only be required on the client")
 
+export type BindAttack_Replica_Type = {
+	UID: string,
+}
+
+const function writeBindAttack_Replica_Type(w: BufferWriter.BufferWriter, value: BindAttack_Replica_Type)
+	w:writestring(value.UID)
+end
+
+const function readBindAttack_Replica_Type(r: BufferReader.BufferReader): BindAttack_Replica_Type
+	const value: BindAttack_Replica_Type = {} :: any
+	value.UID = r:readstring()
+	return value
+end
 
 local reliableWriter = BufferWriter.new()
 local unreliableWriter = BufferWriter.new()
 local remotes: Remotes.DebiRemotes? = nil
 local flushing = false
 
+local BindAttack_Replica_callbacks: { (value: BindAttack_Replica_Type) -> () } = {}
 
 const function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)
 	if w:len() == 0 then
@@ -41,11 +55,23 @@ const function dispatchServer(buf: buffer)
 	const r = BufferReader.new(buf)
 	while r:hasMore() do
 		const id = r:readu8()
+		if id == 1 then
+			const value = readBindAttack_Replica_Type(r)
+			for _, cb in BindAttack_Replica_callbacks do
+				task.spawn(cb, value)
+			end
+			continue
+		end
 		warn("[Debi] unknown server event id", id)
 	end
 end
 
 const Debi = {}
+
+Debi.BindAttack_Replica = Debi.BindAttack_Replica or {}
+function Debi.BindAttack_Replica.On(cb: (value: BindAttack_Replica_Type) -> ())
+	table.insert(BindAttack_Replica_callbacks, cb)
+end
 
 function Debi.Flush()
 	flushAll()

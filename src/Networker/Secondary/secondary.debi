@@ -10,6 +10,16 @@ opt client_output = "src/Networker/Secondary/Client.luau"
 --- << TYPES >> ---
 -----------------------------------------
 
+type BindAttack_Replica_Type = struct {
+    UID: string,
+}
 -----------------------------------------
 --- << EVENTS >> ---
 -----------------------------------------
+
+event BindAttack_Replica = {
+    from: Server,
+    type: Reliable,
+    call: ManyAsync,
+    data: BindAttack_Replica_Type,
+}

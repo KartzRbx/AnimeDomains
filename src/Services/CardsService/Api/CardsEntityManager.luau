@@ -658,6 +658,11 @@ function CardsEntityManager.updateEntity(self: CardsEntityManager, props : Cards
 end
 
 
+function CardsEntityManager.BindAttackReplicated(self: CardsEntityManager)
+	assert(RunService:IsClient(), 'Cannot sended for server.')
+end
+
+
 export type EntityProps = {
     Position: Vector3
 }

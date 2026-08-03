@@ -18,6 +18,19 @@ const RATE_LIMIT_MAX = 90
 
 assert(RunService:IsServer(), "[Debi/Secondary] Server.luau can only be required on the server")
 
+export type BindAttack_Replica_Type = {
+	UID: string,
+}
+
+const function writeBindAttack_Replica_Type(w: BufferWriter.BufferWriter, value: BindAttack_Replica_Type)
+	w:writestring(value.UID)
+end
+
+const function readBindAttack_Replica_Type(r: BufferReader.BufferReader): BindAttack_Replica_Type
+	const value: BindAttack_Replica_Type = {} :: any
+	value.UID = r:readstring()
+	return value
+end
 
 local reliableWriter = BufferWriter.new()
 local unreliableWriter = BufferWriter.new()
@@ -103,6 +116,28 @@ const function handleIncoming(player: Player, payload: unknown, maxBytes: number
 end
 
 const Debi = {}
+
+Debi.BindAttack_Replica = {}
+
+function Debi.BindAttack_Replica.Fire(player: Player, value: BindAttack_Replica_Type)
+	const w = getQueue(reliableQueues, player)
+	w:writeu8(1)
+	writeBindAttack_Replica_Type(w, value)
+end
+
+function Debi.BindAttack_Replica.FireAll(value: BindAttack_Replica_Type)
+	for _, player in Players:GetPlayers() do
+		Debi.BindAttack_Replica.Fire(player, value)
+	end
+end
+
+function Debi.BindAttack_Replica.FireExcept(except: Player, value: BindAttack_Replica_Type)
+	for _, player in Players:GetPlayers() do
+		if player ~= except then
+			Debi.BindAttack_Replica.Fire(player, value)
+		end
+	end
+end
 
 function Debi.Flush()
 	flushAll()
