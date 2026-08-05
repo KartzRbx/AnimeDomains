@@ -154,6 +154,17 @@ function PlacementZoneUtils.ResetUnlocks()
 				part:SetAttribute("Unlocked", false)
 			end
 		end
+
+		local teamsRoot = getTeamsRoot()
+		local teamFolder = teamsRoot and teamsRoot:FindFirstChild(teamName)
+		local towers = teamFolder and teamFolder:FindFirstChild("Towers")
+		if towers then
+			for _, tower in towers:GetChildren() do
+				if tower:IsA("Model") then
+					tower:SetAttribute("Destroyed", nil)
+				end
+			end
+		end
 	end
 end
 

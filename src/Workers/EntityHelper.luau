@@ -22,7 +22,7 @@ export type EntityConfig = {
 export type DamageCalculationProperties = {
 	BaseDamage: number,
 	Level: number,
-	DamagePerLevel: number,
+	DamagePerLevel: number?,
 	BonusDamage: number?,
 	DamageMultiplier: number?,
 }
@@ -68,6 +68,28 @@ export type EntityData = {
 	ExpMax: number,
 }
 
+export type TowerEntityData = {
+	Id: string,
+	BaseHealth: number,
+	BaseDamage: number,
+	BaseRange: number,
+	DelayAttack: number,
+	TargetKind: "Buildings" | "Ground" | "Air" | "All",
+	HealthPerLevel: number,
+}
+
+const TOWER_RECIPES: { [string]: TowerEntityData } = {
+	Dummy = {
+		Id = "Dummy",
+		BaseHealth = 1200,
+		BaseDamage = 140,
+		BaseRange = 18,
+		DelayAttack = 1,
+		TargetKind = "All",
+		HealthPerLevel = 140,
+	},
+}
+
 local function findInFolder(folder: Folder, Name: EntityName): EntityDef?
 	for _, child in folder:GetChildren() do
 		if child:IsA("ModuleScript") and child.Name == Name then
@@ -79,22 +101,62 @@ end
 
 local EntityHelp = {}
 
--- Clash Royale style: ~10% of base HP per level step
-const HEALTH_PER_LEVEL_RATE = 0.10
+-- Clash Royale style: ~10% of base stat per level step (HP and damage)
+const STAT_PER_LEVEL_RATE = 0.10
 const TOWER_CLEARANCE = 5
 const TOWER_APPROACH_BUFFER = 2.5
 const PATH_ENTITY_NAME = "_Entitys"
 const SIDE_TOWER_NAMES = { "LeftTower", "RightTower" }
 const MAIN_TOWER_NAME = "MainTower"
 
-function EntityHelp.GetHealthPerLevel(BaseHealth: number): number
-	return BaseHealth * HEALTH_PER_LEVEL_RATE
+local function getTowerSlotFromAnchorName(anchorName: string): string?
+	if anchorName == "LeftTower" then
+		return "Left"
+	end
+	if anchorName == "MainTower" then
+		return "Main"
+	end
+	if anchorName == "RightTower" then
+		return "Right"
+	end
+	return nil
 end
+
+local function getTeamFolderFromTowerAnchor(anchor: Model): Folder?
+	local towersFolder = anchor.Parent
+	if not towersFolder or towersFolder.Name ~= "Towers" then
+		return nil
+	end
+
+	local teamFolder = towersFolder.Parent
+	if teamFolder and teamFolder:IsA("Folder") then
+		return teamFolder
+	end
+
+	return nil
+end
+
+function EntityHelp.GetHealthPerLevel(BaseHealth: number): number
+	return BaseHealth * STAT_PER_LEVEL_RATE
+end
+
+function EntityHelp.GetDamagePerLevel(BaseDamage: number): number
+	return BaseDamage * STAT_PER_LEVEL_RATE
+end
+
+function EntityHelp.GetEntityFloorOffset(Entity: Model): number
+	local boundsCF, size = Entity:GetBoundingBox()
+	local pivotY = Entity:GetPivot().Position.Y
+	const bottomY = boundsCF.Position.Y - size.Y * 0.5
+	return math.max(0, pivotY - bottomY)
+end
+
 
 function EntityHelp.CalculateDamage(props: DamageCalculationProperties): number
 	local bonusDamage = props.BonusDamage or 0
 	local damageMultiplier = props.DamageMultiplier or 1
-	local levelDamage = props.DamagePerLevel * math.max(props.Level - 1, 0)
+	local damagePerLevel = props.DamagePerLevel or EntityHelp.GetDamagePerLevel(props.BaseDamage)
+	local levelDamage = damagePerLevel * math.max(props.Level - 1, 0)
 	local damage = props.BaseDamage + levelDamage + bonusDamage
 
 	return damage * damageMultiplier
@@ -214,15 +276,166 @@ function EntityHelp.GetEntityCharacterForUID(uid: string): Model?
 		end
 	end
 
+	local gameFolder = Workspace:FindFirstChild("Game")
+	local gameplay = gameFolder and gameFolder:FindFirstChild("Gameplay")
+	local teams = gameplay and gameplay:FindFirstChild("Teams")
+	if teams then
+		for _, teamFolder in teams:GetChildren() do
+			if not teamFolder:IsA("Folder") then
+				continue
+			end
+
+			local units = teamFolder:FindFirstChild("Units")
+			if units then
+				for _, unit in units:GetChildren() do
+					if unit:IsA("Model") and unit:GetAttribute("UID") == uid then
+						return unit
+					end
+				end
+			end
+
+			local towers = teamFolder:FindFirstChild("Towers")
+			if towers then
+				for _, tower in towers:GetChildren() do
+					if tower:IsA("Model") and tower:GetAttribute("UID") == uid then
+						return tower
+					end
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+function EntityHelp.GetSpawnedTowerForAnchor(anchor: Model): Model?
+	if anchor:GetAttribute("Kind") == "Tower" then
+		local uid = anchor:GetAttribute("UID")
+		if type(uid) == "string" and uid ~= "" then
+			return anchor
+		end
+	end
+
+	local slot = getTowerSlotFromAnchorName(anchor.Name)
+	if not slot then
+		return nil
+	end
+
+	local teamFolder = getTeamFolderFromTowerAnchor(anchor)
+	if not teamFolder then
+		return nil
+	end
+
+	local units = teamFolder:FindFirstChild("Units")
+	if not units then
+		return nil
+	end
+
+	for _, child in units:GetChildren() do
+		if not child:IsA("Model") then
+			continue
+		end
+
+		if child:GetAttribute("Kind") ~= "Tower" then
+			continue
+		end
+
+		if child:GetAttribute("TowerSlot") == slot then
+			return child
+		end
+	end
+
+	return nil
+end
+
+function EntityHelp.GetCombatTargetForId(targetId: string): Model?
+	if type(targetId) ~= "string" or targetId == "" then
+		return nil
+	end
+
+	local entityModel = EntityHelp.GetEntityCharacterForUID(targetId)
+	if entityModel then
+		return entityModel
+	end
+
+	local gameFolder = Workspace:FindFirstChild("Game")
+	local gameplay = gameFolder and gameFolder:FindFirstChild("Gameplay")
+	local teams = gameplay and gameplay:FindFirstChild("Teams")
+	if not teams then
+		return nil
+	end
+
+	for _, teamFolder in teams:GetChildren() do
+		if not teamFolder:IsA("Folder") then
+			continue
+		end
+
+		local towers = teamFolder:FindFirstChild("Towers")
+		local tower = towers and towers:FindFirstChild(targetId)
+		if tower and tower:IsA("Model") then
+			local spawned = EntityHelp.GetSpawnedTowerForAnchor(tower)
+			if spawned and EntityHelp.IsTowerAlive(spawned) then
+				return spawned
+			end
+			return nil
+		end
+	end
+
 	return nil
 end
 
 function EntityHelp.IsTowerAlive(tower: Model): boolean
-	local humanoid = tower:FindFirstChildOfClass("Humanoid")
+	if tower:GetAttribute("Destroyed") == true then
+		return false
+	end
+
+	local spawned = EntityHelp.GetSpawnedTowerForAnchor(tower)
+	local combatModel: Model
+	if spawned then
+		combatModel = spawned
+	elseif getTowerSlotFromAnchorName(tower.Name) then
+		-- Anchor with no spawned entity (defeated / not spawned) is not targetable
+		return false
+	else
+		combatModel = tower
+	end
+
+	if combatModel:GetAttribute("Destroyed") == true or combatModel:GetAttribute("Despawning") == true then
+		return false
+	end
+
+	local humanoid = combatModel:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		return humanoid.Health > 0
 	end
-	return tower.Parent ~= nil
+	return combatModel.Parent ~= nil
+end
+
+function EntityHelp.GetTowerAnchorForSpawned(spawned: Model): Model?
+	local team = spawned:GetAttribute("Team")
+	local slot = spawned:GetAttribute("TowerSlot")
+	if type(team) ~= "string" or type(slot) ~= "string" then
+		return nil
+	end
+
+	local anchorName = if slot == "Left"
+		then "LeftTower"
+		elseif slot == "Main" then "MainTower"
+		elseif slot == "Right" then "RightTower"
+		else nil
+	if not anchorName then
+		return nil
+	end
+
+	local teamsRoot = getTeamsRoot()
+	local teamFolder = teamsRoot and teamsRoot:FindFirstChild(team)
+	local towers = teamFolder and teamFolder:FindFirstChild("Towers")
+	local anchor = towers and towers:FindFirstChild(anchorName)
+	if anchor and anchor:IsA("Model") then
+		return anchor
+	end
+
+	return nil
 end
 
 function EntityHelp.IsMainTowerTargetable(leftAlive: boolean, rightAlive: boolean): boolean
@@ -360,6 +573,14 @@ function EntityHelp.GetEnemyTowerPosition(teamName: TeamName, fromPos: Vector3?)
 	end
 
 	return EntityHelp.GetEnemyMainTowerPosition(teamName)
+end
+
+function EntityHelp.GetTowerDataById(towerId: string): TowerEntityData?
+	if type(towerId) ~= "string" or towerId == "" then
+		return nil
+	end
+
+	return TOWER_RECIPES[towerId]
 end
 
 -- Unit card recipe by CardId (e.g. "Sabre") — not player save data

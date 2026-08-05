@@ -33,6 +33,8 @@
 
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
+
 export type MiscCategory = string
 export type ModelCategory = string
 export type TemplateName = string
@@ -56,8 +58,10 @@ export type AssetsUtils = {
 	getMaps: (mapName: MapName) -> Instance,
 	getSound: (soundName: SoundName) -> Instance,
 	getAnimation: (animationName: AnimationName) -> Instance,
-	getEntityAnimation: (kind: EntityKind, entityId: EntityId, animName: AnimName) -> Animation,
+	getEntityAnimation: (kind: EntityKind, entityId: EntityId, animName: AnimName) -> Animation?,
+	GetEntityAnimationForUID: (uid: string, animName: AnimName) -> Animation?,
 	GetDefaultEntityAnimation: (animationName: AnimationName) -> Animation,
+	GetCardIdForEntityUID: (uid: string) -> string?,
 	getEffect: (effectName: EffectName) -> Instance,
 	getGameplayEntityEffect: (effectName: EffectName) -> Instance,
 	getGameplayEffectSound: (soundName: SoundName) -> Sound,
@@ -168,35 +172,96 @@ end
 
 --[[
 	Resolve: Entitys/Tower|<Units>/<Id>/<Anim> if present,
-	else Entitys/Units/_Universal/<Anim> (shared Idle/Walk).
-	Note: Units folder (plural) under Animations; Unit (singular) under Models.
+	else same path using ModelID from card data,
+	else Entitys/Units/_Universal/<Anim> when it exists (Idle/Walk only).
 ]]
-function AssetsUtils.getEntityAnimation(kind: EntityKind, entityId: EntityId, animName: AnimName): Animation
+function AssetsUtils.getEntityAnimation(kind: EntityKind, entityId: EntityId, animName: AnimName): Animation?
 	local entitys = getEntityAnimsRoot()
 	local kindFolderName = if kind == "Tower" then "Tower" else "Units"
 	local kindFolder = entitys:FindFirstChild(kindFolderName)
 
-	if kindFolder and kindFolder:IsA("Folder") then
-		local idFolder = kindFolder:FindFirstChild(entityId)
-		if idFolder and idFolder:IsA("Folder") then
-			local specific = idFolder:FindFirstChild(animName)
-			if specific and specific:IsA("Animation") then
-				return specific
-			end
+	local function findInFolder(folderName: string): Animation?
+		if not kindFolder or not kindFolder:IsA("Folder") then
+			return nil
+		end
+
+		local idFolder = kindFolder:FindFirstChild(folderName)
+		if not idFolder or not idFolder:IsA("Folder") then
+			return nil
+		end
+
+		local specific = idFolder:FindFirstChild(animName)
+		if specific and specific:IsA("Animation") then
+			return specific
+		end
+
+		return nil
+	end
+
+	local specific = findInFolder(entityId)
+	if specific then
+		return specific
+	end
+
+	local entityData = EntityHelper.GetEntityDataByCardId(entityId)
+	if entityData and entityData.ModelID ~= entityId then
+		specific = findInFolder(entityData.ModelID)
+		if specific then
+			return specific
 		end
 	end
 
 	local universal = getUniversalAnimsFolder()
-	local fallback = findTemplate(universal, animName, "Assets/Animations/Gameplay/Entitys/Units/_Universal")
-	assert(fallback:IsA("Animation"), `Universal anim missing: {animName}`)
-	return fallback
+	local fallback = universal:FindFirstChild(animName)
+	if fallback and fallback:IsA("Animation") then
+		return fallback
+	end
+
+	return nil
 end
 
+function AssetsUtils.GetEntityAnimationForUID(uid: string, animName: AnimName): Animation?
+	local cardId = AssetsUtils.GetCardIdForEntityUID(uid)
+	if not cardId then
+		return nil
+	end
+
+	local entityModel = EntityHelper.GetEntityCharacterForUID(uid)
+	local kind: EntityKind = "Unit"
+	if entityModel then
+		local kindAttr = entityModel:GetAttribute("Kind")
+		if kindAttr == "Tower" then
+			kind = "Tower"
+		end
+	end
+
+	return AssetsUtils.getEntityAnimation(kind, cardId, animName)
+end
+
+-- _Universal only: Idle, Walk
 function AssetsUtils.GetDefaultEntityAnimation(animationName: AnimationName): Animation
 	local universal = getUniversalAnimsFolder()
 	local template = findTemplate(universal, animationName, "Assets/Animations/Gameplay/Entitys/Units/_Universal")
 	assert(template:IsA("Animation"), `Default entity anim missing: {animationName}`)
 	return template
+end
+
+function AssetsUtils.GetCardIdForEntityUID(uid: string): string?
+	if type(uid) ~= "string" or uid == "" then
+		return nil
+	end
+
+	local entityModel = EntityHelper.GetEntityCharacterForUID(uid)
+	if not entityModel then
+		return nil
+	end
+
+	local cardId = entityModel:GetAttribute("CardId")
+	if type(cardId) ~= "string" or cardId == "" then
+		return nil
+	end
+
+	return cardId
 end
 
 function AssetsUtils.getEffect(effectName: EffectName): Instance

@@ -210,7 +210,7 @@ end
 
 function CardsServiceUtils.GetEntityGoalCFrame(player: Player, spawnPos: Vector3, model: Model): CFrame
 	const lookCFrame = CardsServiceUtils.GetEntityLookCFrame(player, spawnPos)
-	const floorOffset = CardsCutscenes:GetEntityFloorOffset(model)
+	const floorOffset = EntityHelper.GetEntityFloorOffset(model)
 	return lookCFrame * CFrame.new(0, floorOffset, 0)
 end
 

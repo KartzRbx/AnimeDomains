@@ -501,11 +501,32 @@ function Debi.SetEntityState.FireExcept(except: Player, state: EntityState)
 	end
 end
 
+Debi.ResolveTowerEntitys = {}
+
+function Debi.ResolveTowerEntitys.Fire(player: Player)
+	const w = getQueue(reliableQueues, player)
+	w:writeu8(7)
+end
+
+function Debi.ResolveTowerEntitys.FireAll()
+	for _, player in Players:GetPlayers() do
+		Debi.ResolveTowerEntitys.Fire(player)
+	end
+end
+
+function Debi.ResolveTowerEntitys.FireExcept(except: Player)
+	for _, player in Players:GetPlayers() do
+		if player ~= except then
+			Debi.ResolveTowerEntitys.Fire(player)
+		end
+	end
+end
+
 Debi.AddUnit = {}
 
 function Debi.AddUnit.Fire(player: Player, unit: UnitState)
 	const w = getQueue(reliableQueues, player)
-	w:writeu8(7)
+	w:writeu8(8)
 	writeUnitState(w, unit)
 end
 
@@ -527,7 +548,7 @@ Debi.UpdateUnit = {}
 
 function Debi.UpdateUnit.Fire(player: Player, unit: UnitUpdate)
 	const w = getQueue(unreliableQueues, player)
-	w:writeu8(8)
+	w:writeu8(9)
 	writeUnitUpdate(w, unit)
 end
 
@@ -549,7 +570,7 @@ Debi.RemoveUnit = {}
 
 function Debi.RemoveUnit.Fire(player: Player, netId: number)
 	const w = getQueue(reliableQueues, player)
-	w:writeu8(9)
+	w:writeu8(10)
 	w:writeu32(netId)
 end
 

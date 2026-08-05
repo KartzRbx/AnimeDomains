@@ -8,9 +8,11 @@ const CardsServiceServer = require(script.Parent.CardsService)
 const GameplayTypes = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayTypes)
 const GameplayBuildMap = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayBuildMap)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
+const TowerServiceServer = require(script.Parent.TowerService)
 const Islands = require(ReplicatedStorage.Shareds.Constants.Datas.Islands)
 const Debi = require(ReplicatedStorage.Shareds.Networker.NetServer).Game
 const Janitor = require(ReplicatedStorage.Packages.janitor)
+const NetServer = require(ReplicatedStorage.Shareds.Networker.NetServer)
 const DataServiceV2 = require(ReplicatedStorage.Shareds.Workers.DataServiceV2)
 const Server = DataServiceV2.Server
 const Paths = DataServiceV2.Paths
@@ -304,6 +306,15 @@ function GameplayServiceServer.StartMatch(
 			end)
 		end
 	end
+
+	const ownerOne = props.Players[1] or "Enemy"
+	const ownerTwo = props.Players[2] or "Enemy"
+	TowerServiceServer:SpawnMatchTowers({
+		One = GameplayServiceServer.GetDefaultTeamData(ownerOne),
+		Two = GameplayServiceServer.GetDefaultTeamData(ownerTwo),
+	})
+
+	NetServer.Game.ResolveTowerEntitys.FireAll()
 
 	--print("[GameplayService] Match started:", matchId, props.GameConfig.MapId, props.GameConfig.GameMode)
 	return match

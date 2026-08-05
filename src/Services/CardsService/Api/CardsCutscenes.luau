@@ -15,6 +15,7 @@ const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const AssetsUtils = require(ReplicatedStorage.Shareds.Utils.AssetsUtils)
 const MathUtils = require(ReplicatedStorage.Shareds.Utils.MathUtils)
 const VFXUtil = require(ReplicatedStorage.Shareds.Utils.VFXUtil)
+const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 
 const CardServiceCutscenes = {}
 
@@ -80,13 +81,7 @@ const function GetClockOrbitPosition(HumanoidRootPart: BasePart): Vector3
 	return HumanoidRootPart.Position + flatToCamera * CLOCK_ORBIT_RADIUS + Vector3.new(0, CLOCK_ORBIT_HEIGHT, 0)
 end
 
--- Distance from model pivot to its bottom (feet → floor).
-function CardServiceCutscenes.GetEntityFloorOffset(self:CardServiceCutscenes, Entity: Model): number
-	local boundsCF, size = Entity:GetBoundingBox()
-	local pivotY = Entity:GetPivot().Position.Y
-	const bottomY = boundsCF.Position.Y - size.Y * 0.5
-	return math.max(0, pivotY - bottomY)
-end
+
 
 function CardServiceCutscenes.ClockTimeEffect(Entity: Model, deployTime: number): CardsServiceType.SpawnEntityCallback
 	const __call: CardsServiceType.SpawnEntityCallback = {
@@ -269,7 +264,7 @@ function CardServiceCutscenes.EmitSpawnEffect(
 	local effect = VFXUtil.EmitAll(AssetsUtils.getGameplayEntityEffect('ImpactSpawn'), Entity)
 	local hrp = Entity:FindFirstChild('HumanoidRootPart') :: BasePart
 	if effect.Instance:IsA('Attachment') then
-		effect.Instance.CFrame = CFrame.new(0, -self:GetEntityFloorOffset(Entity), 0)
+		effect.Instance.CFrame = CFrame.new(0, -EntityHelper.GetEntityFloorOffset(Entity), 0)
 	end
 end
 
@@ -295,7 +290,7 @@ function CardServiceCutscenes.SpawnEntityInPosition(
 
 	assert(Entity:IsA("Model"), "SpawnEntityInPosition expects a Model")
 
-	const Offset = CardServiceCutscenes:GetEntityFloorOffset(Entity)
+	const Offset = EntityHelper.GetEntityFloorOffset(Entity)
 	const goalCFrame = Pos * CFrame.new(0, Offset, 0)
 	const startCFrame = goalCFrame * CFrame.new(0, Offset, 0)
 

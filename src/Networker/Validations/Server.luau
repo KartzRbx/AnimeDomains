@@ -18,6 +18,54 @@ const RATE_LIMIT_MAX = 90
 
 assert(RunService:IsServer(), "[Debi/Validations] Server.luau can only be required on the server")
 
+export type PlayerCanEmitAttackResult = {
+	UID: string,
+	CardID: string,
+	CanAttack: boolean,
+	Reason: string,
+}
+
+const function writePlayerCanEmitAttackResult(w: BufferWriter.BufferWriter, value: PlayerCanEmitAttackResult)
+	w:writestring(value.UID)
+	w:writestring(value.CardID)
+	w:writebool(value.CanAttack)
+	w:writestring(value.Reason)
+end
+
+const function readPlayerCanEmitAttackResult(r: BufferReader.BufferReader): PlayerCanEmitAttackResult
+	const value: PlayerCanEmitAttackResult = {} :: any
+	value.UID = r:readstring()
+	value.CardID = r:readstring()
+	value.CanAttack = r:readbool()
+	value.Reason = r:readstring()
+	return value
+end
+
+export type AttackHitClaimResult = {
+	UID: string,
+	TargetUID: string,
+	HitIndex: number,
+	Accepted: boolean,
+	Reason: string,
+}
+
+const function writeAttackHitClaimResult(w: BufferWriter.BufferWriter, value: AttackHitClaimResult)
+	w:writestring(value.UID)
+	w:writestring(value.TargetUID)
+	w:writeu16(value.HitIndex)
+	w:writebool(value.Accepted)
+	w:writestring(value.Reason)
+end
+
+const function readAttackHitClaimResult(r: BufferReader.BufferReader): AttackHitClaimResult
+	const value: AttackHitClaimResult = {} :: any
+	value.UID = r:readstring()
+	value.TargetUID = r:readstring()
+	value.HitIndex = r:readu16()
+	value.Accepted = r:readbool()
+	value.Reason = r:readstring()
+	return value
+end
 
 local reliableWriter = BufferWriter.new()
 local unreliableWriter = BufferWriter.new()
@@ -28,6 +76,8 @@ local flushing = false
 local packetCounts: { [Player]: { count: number, resetAt: number } } = {}
 
 local CutsceneCompleted_callback: ((player: Player, UID: string, CardID: string) -> ())? = nil
+local PlayerCanEmitAttackForCardID_callback: ((player: Player, UID: string, CardID: string) -> ())? = nil
+local AttackHitClaim_callback: ((player: Player, UID: string, TargetUID: string, HitIndex: number, HitTime: number) -> ())? = nil
 
 const function getQueue(map: { [Player]: BufferWriter.BufferWriter }, player: Player): BufferWriter.BufferWriter
 	local q = map[player]
@@ -93,6 +143,26 @@ const function dispatchClient(player: Player, buf: buffer)
 				end
 				continue
 			end
+			if id == 2 then
+				const UID = r:readstring()
+				const CardID = r:readstring()
+				const cb = PlayerCanEmitAttackForCardID_callback
+				if cb then
+					cb(player, UID, CardID)
+				end
+				continue
+			end
+			if id == 4 then
+				const UID = r:readstring()
+				const TargetUID = r:readstring()
+				const HitIndex = r:readu16()
+				const HitTime = r:readf32()
+				const cb = AttackHitClaim_callback
+				if cb then
+					task.spawn(cb, player, UID, TargetUID, HitIndex, HitTime)
+				end
+				continue
+			end
 			-- unknown / Server-only ids: drop silently
 			return
 		end
@@ -115,9 +185,63 @@ end
 
 const Debi = {}
 
+Debi.PlayerCanEmitAttackForCardIDResult = {}
+
+function Debi.PlayerCanEmitAttackForCardIDResult.Fire(player: Player, value: PlayerCanEmitAttackResult)
+	const w = getQueue(reliableQueues, player)
+	w:writeu8(3)
+	writePlayerCanEmitAttackResult(w, value)
+end
+
+function Debi.PlayerCanEmitAttackForCardIDResult.FireAll(value: PlayerCanEmitAttackResult)
+	for _, player in Players:GetPlayers() do
+		Debi.PlayerCanEmitAttackForCardIDResult.Fire(player, value)
+	end
+end
+
+function Debi.PlayerCanEmitAttackForCardIDResult.FireExcept(except: Player, value: PlayerCanEmitAttackResult)
+	for _, player in Players:GetPlayers() do
+		if player ~= except then
+			Debi.PlayerCanEmitAttackForCardIDResult.Fire(player, value)
+		end
+	end
+end
+
+Debi.AttackHitClaimResult = {}
+
+function Debi.AttackHitClaimResult.Fire(player: Player, value: AttackHitClaimResult)
+	const w = getQueue(reliableQueues, player)
+	w:writeu8(5)
+	writeAttackHitClaimResult(w, value)
+end
+
+function Debi.AttackHitClaimResult.FireAll(value: AttackHitClaimResult)
+	for _, player in Players:GetPlayers() do
+		Debi.AttackHitClaimResult.Fire(player, value)
+	end
+end
+
+function Debi.AttackHitClaimResult.FireExcept(except: Player, value: AttackHitClaimResult)
+	for _, player in Players:GetPlayers() do
+		if player ~= except then
+			Debi.AttackHitClaimResult.Fire(player, value)
+		end
+	end
+end
+
 Debi.CutsceneCompleted = Debi.CutsceneCompleted or {}
 function Debi.CutsceneCompleted.SetCallback(cb: (player: Player, UID: string, CardID: string) -> ())
 	CutsceneCompleted_callback = cb
+end
+
+Debi.PlayerCanEmitAttackForCardID = Debi.PlayerCanEmitAttackForCardID or {}
+function Debi.PlayerCanEmitAttackForCardID.SetCallback(cb: (player: Player, UID: string, CardID: string) -> ())
+	PlayerCanEmitAttackForCardID_callback = cb
+end
+
+Debi.AttackHitClaim = Debi.AttackHitClaim or {}
+function Debi.AttackHitClaim.SetCallback(cb: (player: Player, UID: string, TargetUID: string, HitIndex: number, HitTime: number) -> ())
+	AttackHitClaim_callback = cb
 end
 
 function Debi.Flush()

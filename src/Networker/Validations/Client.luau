@@ -13,12 +13,62 @@ const CHANNEL = "Validations"
 
 assert(RunService:IsClient(), "[Debi/Validations] Client.luau can only be required on the client")
 
+export type PlayerCanEmitAttackResult = {
+	UID: string,
+	CardID: string,
+	CanAttack: boolean,
+	Reason: string,
+}
+
+const function writePlayerCanEmitAttackResult(w: BufferWriter.BufferWriter, value: PlayerCanEmitAttackResult)
+	w:writestring(value.UID)
+	w:writestring(value.CardID)
+	w:writebool(value.CanAttack)
+	w:writestring(value.Reason)
+end
+
+const function readPlayerCanEmitAttackResult(r: BufferReader.BufferReader): PlayerCanEmitAttackResult
+	const value: PlayerCanEmitAttackResult = {} :: any
+	value.UID = r:readstring()
+	value.CardID = r:readstring()
+	value.CanAttack = r:readbool()
+	value.Reason = r:readstring()
+	return value
+end
+
+export type AttackHitClaimResult = {
+	UID: string,
+	TargetUID: string,
+	HitIndex: number,
+	Accepted: boolean,
+	Reason: string,
+}
+
+const function writeAttackHitClaimResult(w: BufferWriter.BufferWriter, value: AttackHitClaimResult)
+	w:writestring(value.UID)
+	w:writestring(value.TargetUID)
+	w:writeu16(value.HitIndex)
+	w:writebool(value.Accepted)
+	w:writestring(value.Reason)
+end
+
+const function readAttackHitClaimResult(r: BufferReader.BufferReader): AttackHitClaimResult
+	const value: AttackHitClaimResult = {} :: any
+	value.UID = r:readstring()
+	value.TargetUID = r:readstring()
+	value.HitIndex = r:readu16()
+	value.Accepted = r:readbool()
+	value.Reason = r:readstring()
+	return value
+end
 
 local reliableWriter = BufferWriter.new()
 local unreliableWriter = BufferWriter.new()
 local remotes: Remotes.DebiRemotes? = nil
 local flushing = false
 
+local PlayerCanEmitAttackForCardIDResult_callback: ((value: PlayerCanEmitAttackResult) -> ())? = nil
+local AttackHitClaimResult_callback: ((value: AttackHitClaimResult) -> ())? = nil
 
 const function flushWriter(w: BufferWriter.BufferWriter, remote: RemoteEvent | UnreliableRemoteEvent)
 	if w:len() == 0 then
@@ -41,6 +91,22 @@ const function dispatchServer(buf: buffer)
 	const r = BufferReader.new(buf)
 	while r:hasMore() do
 		const id = r:readu8()
+		if id == 3 then
+			const value = readPlayerCanEmitAttackResult(r)
+			const cb = PlayerCanEmitAttackForCardIDResult_callback
+			if cb then
+				task.spawn(cb, value)
+			end
+			continue
+		end
+		if id == 5 then
+			const value = readAttackHitClaimResult(r)
+			const cb = AttackHitClaimResult_callback
+			if cb then
+				task.spawn(cb, value)
+			end
+			continue
+		end
 		warn("[Debi] unknown server event id", id)
 	end
 end
@@ -54,6 +120,36 @@ function Debi.CutsceneCompleted.Fire(UID: string, CardID: string)
 	w:writeu8(1)
 	w:writestring(UID)
 	w:writestring(CardID)
+end
+
+Debi.PlayerCanEmitAttackForCardID = {}
+
+function Debi.PlayerCanEmitAttackForCardID.Fire(UID: string, CardID: string)
+	const w = reliableWriter
+	w:writeu8(2)
+	w:writestring(UID)
+	w:writestring(CardID)
+end
+
+Debi.AttackHitClaim = {}
+
+function Debi.AttackHitClaim.Fire(UID: string, TargetUID: string, HitIndex: number, HitTime: number)
+	const w = reliableWriter
+	w:writeu8(4)
+	w:writestring(UID)
+	w:writestring(TargetUID)
+	w:writeu16(HitIndex)
+	w:writef32(HitTime)
+end
+
+Debi.PlayerCanEmitAttackForCardIDResult = Debi.PlayerCanEmitAttackForCardIDResult or {}
+function Debi.PlayerCanEmitAttackForCardIDResult.SetCallback(cb: (value: PlayerCanEmitAttackResult) -> ())
+	PlayerCanEmitAttackForCardIDResult_callback = cb
+end
+
+Debi.AttackHitClaimResult = Debi.AttackHitClaimResult or {}
+function Debi.AttackHitClaimResult.SetCallback(cb: (value: AttackHitClaimResult) -> ())
+	AttackHitClaimResult_callback = cb
 end
 
 function Debi.Flush()

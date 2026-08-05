@@ -51,6 +51,8 @@ type MatchEnergy = struct {
 	Max: f32,
 }
 
+
+
 -----------------------------------------
 --- << TYPES / CARDS >> ---
 -----------------------------------------
@@ -152,6 +154,13 @@ event SetEntityState = {
 	type: Reliable,
 	call: SingleAsync,
 	data: (state: EntityState),
+}
+
+event ResolveTowerEntitys = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	
 }
 
 -----------------------------------------

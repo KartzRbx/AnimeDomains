@@ -10,10 +10,13 @@ const UIModule = require(ReplicatedStorage.Shareds.Modules.UIModule)
 const EnergyServiceClient = require(ReplicatedStorage.Shareds.Services.EnergyService.EnergyServiceClient)
 const CardsServiceClient = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceClient)
 const GameplayServiceClient = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayServiceClient)
+const TowerServiceClient = require(ReplicatedStorage.Shareds.Services.TowerService.TowerServiceClient)
 
 PlayerUtils.waitMain()
 UIModule:Init()
 
+
+TowerServiceClient:Init()
 EnergyServiceClient:Init()
 CardsServiceClient:Init()
 GameplayServiceClient:Init()

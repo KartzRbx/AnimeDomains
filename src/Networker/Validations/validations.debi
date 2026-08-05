@@ -10,6 +10,21 @@ opt client_output = "src/Networker/Validations/Client.luau"
 --- << TYPES >> ---
 -----------------------------------------
 
+type PlayerCanEmitAttackResult = struct {
+    UID: string,
+    CardID: string,
+    CanAttack: bool,
+    Reason: string,
+}
+
+type AttackHitClaimResult = struct {
+    UID: string,
+    TargetUID: string,
+    HitIndex: u16,
+    Accepted: bool,
+    Reason: string,
+}
+
 -----------------------------------------
 --- << EVENTS >> ---
 -----------------------------------------
@@ -19,4 +34,32 @@ event CutsceneCompleted = {
     type: Reliable,
     call: SingleAsync,
     data: (UID: string, CardID: string),
+}
+
+event PlayerCanEmitAttackForCardID = {
+    from: Client,
+    type: Reliable,
+    call: SingleSync,
+    data: (UID: string, CardID: string),
+}
+
+event PlayerCanEmitAttackForCardIDResult = {
+    from: Server,
+    type: Reliable,
+    call: SingleAsync,
+    data: PlayerCanEmitAttackResult,
+}
+
+event AttackHitClaim = {
+    from: Client,
+    type: Reliable,
+    call: SingleAsync,
+    data: (UID: string, TargetUID: string, HitIndex: u16, HitTime: f32),
+}
+
+event AttackHitClaimResult = {
+    from: Server,
+    type: Reliable,
+    call: SingleAsync,
+    data: AttackHitClaimResult,
 }

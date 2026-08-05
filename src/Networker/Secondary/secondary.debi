@@ -12,6 +12,7 @@ opt client_output = "src/Networker/Secondary/Client.luau"
 
 type BindAttack_Replica_Type = struct {
     UID: string,
+    TargetUID: string,
 }
 -----------------------------------------
 --- << EVENTS >> ---

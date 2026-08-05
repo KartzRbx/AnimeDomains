@@ -20,15 +20,18 @@ assert(RunService:IsServer(), "[Debi/Secondary] Server.luau can only be required
 
 export type BindAttack_Replica_Type = {
 	UID: string,
+	TargetUID: string,
 }
 
 const function writeBindAttack_Replica_Type(w: BufferWriter.BufferWriter, value: BindAttack_Replica_Type)
 	w:writestring(value.UID)
+	w:writestring(value.TargetUID)
 end
 
 const function readBindAttack_Replica_Type(r: BufferReader.BufferReader): BindAttack_Replica_Type
 	const value: BindAttack_Replica_Type = {} :: any
 	value.UID = r:readstring()
+	value.TargetUID = r:readstring()
 	return value
 end
 

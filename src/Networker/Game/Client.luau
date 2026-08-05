@@ -301,6 +301,7 @@ local SetEnergy_callback: ((energy: MatchEnergy) -> ())? = nil
 local SyncCardHand_callback: ((state: CardHandState) -> ())? = nil
 local SpawnEntityInMapFromServer_callback: ((payload: SpawnEntityInMapFromServerType) -> ())? = nil
 local SetEntityState_callback: ((state: EntityState) -> ())? = nil
+local ResolveTowerEntitys_callback: (() -> ())? = nil
 local AddUnit_callbacks: { (unit: UnitState) -> () } = {}
 local UpdateUnit_callbacks: { (unit: UnitUpdate) -> () } = {}
 local RemoveUnit_callbacks: { (netId: number) -> () } = {}
@@ -367,20 +368,28 @@ const function dispatchServer(buf: buffer)
 			continue
 		end
 		if id == 7 then
+
+			const cb = ResolveTowerEntitys_callback
+			if cb then
+				task.spawn(cb)
+			end
+			continue
+		end
+		if id == 8 then
 			const unit = readUnitState(r)
 			for _, cb in AddUnit_callbacks do
 				task.spawn(cb, unit)
 			end
 			continue
 		end
-		if id == 8 then
+		if id == 9 then
 			const unit = readUnitUpdate(r)
 			for _, cb in UpdateUnit_callbacks do
 				task.spawn(cb, unit)
 			end
 			continue
 		end
-		if id == 9 then
+		if id == 10 then
 			const netId = r:readu32()
 			for _, cb in RemoveUnit_callbacks do
 				task.spawn(cb, netId)
@@ -424,6 +433,11 @@ end
 Debi.SetEntityState = Debi.SetEntityState or {}
 function Debi.SetEntityState.SetCallback(cb: (state: EntityState) -> ())
 	SetEntityState_callback = cb
+end
+
+Debi.ResolveTowerEntitys = Debi.ResolveTowerEntitys or {}
+function Debi.ResolveTowerEntitys.SetCallback(cb: () -> ())
+	ResolveTowerEntitys_callback = cb
 end
 
 Debi.AddUnit = Debi.AddUnit or {}

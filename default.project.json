@@ -85,6 +85,18 @@
             "GameplayTypes": {
               "$path": "src/Services/GameplayService/GameplayTypes.luau"
             }
+          },
+          "TowerService": {
+            "$className": "Folder",
+            "TowerServiceClient": {
+              "$path": "src/Services/TowerService/TowerServiceClient.luau"
+            },
+            "TowerServiceUtils": {
+              "$path": "src/Services/TowerService/TowerServiceUtils.luau"
+            },
+            "TowerTypes": {
+              "$path": "src/Services/TowerService/TowerTypes.luau"
+            }
           }
         },
         "Constants": {
@@ -213,6 +225,9 @@
           },
           "GameplayService": {
             "$path": "src/Services/GameplayService/GameplayServiceServer.luau"
+          },
+          "TowerService": {
+            "$path": "src/Services/TowerService/TowerServiceServer.luau"
           }
         }
       }

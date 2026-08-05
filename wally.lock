@@ -38,6 +38,11 @@ version = "0.4.1"
 dependencies = []
 
 [[package]]
+name = "ddust1n/zoneplus"
+version = "3.2.5"
+dependencies = []
+
+[[package]]
 name = "kartzrbx/dataservicev2"
 version = "2.3.3"
 dependencies = []
@@ -95,4 +100,4 @@ dependencies = []
 [[package]]
 name = "user/animedomains"
 version = "0.1.0"
-dependencies = [["Pathfinder", "aerodymier/pathfinder@0.2.2"], ["cmdr", "lipetos/cmdr@1.12.2"], ["dataservicev2", "kartzrbx/dataservicev2@2.3.3"], ["display", "nightcycle/display@0.2.8"], ["ezvisualz", "arxkdev/ezvisualz@1.2.0"], ["formatnumber", "kumarion/formatnumber@0.0.1"], ["jabby", "alicesaidhi/jabby@0.6.1"], ["janitor", "1foreverhd/janitor@1.18.15"], ["jecs", "ukendio/jecs@0.11.0"], ["module3d", "kumarion/module3d@0.0.2"], ["signal", "sleitnick/signal@2.0.3"], ["spring", "nightcycle/spring@1.0.0"], ["stickybillboard", "kartzrbx/stickybillboard@1.2.0"], ["topbarplus", "1foreverhd/topbarplus@3.4.0"], ["vfx-util", "lucaschaibub/vfx-util@1.0.0"]]
+dependencies = [["Pathfinder", "aerodymier/pathfinder@0.2.2"], ["ZonePlus", "ddust1n/zoneplus@3.2.5"], ["cmdr", "lipetos/cmdr@1.12.2"], ["dataservicev2", "kartzrbx/dataservicev2@2.3.3"], ["display", "nightcycle/display@0.2.8"], ["ezvisualz", "arxkdev/ezvisualz@1.2.0"], ["formatnumber", "kumarion/formatnumber@0.0.1"], ["jabby", "alicesaidhi/jabby@0.6.1"], ["janitor", "1foreverhd/janitor@1.18.15"], ["jecs", "ukendio/jecs@0.11.0"], ["module3d", "kumarion/module3d@0.0.2"], ["signal", "sleitnick/signal@2.0.3"], ["spring", "nightcycle/spring@1.0.0"], ["stickybillboard", "kartzrbx/stickybillboard@1.2.0"], ["topbarplus", "1foreverhd/topbarplus@3.4.0"], ["vfx-util", "lucaschaibub/vfx-util@1.0.0"]]
