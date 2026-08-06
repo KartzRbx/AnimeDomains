@@ -1,6 +1,5 @@
 --!strict
-const ReplicatedStorage = game:GetService("ReplicatedStorage")
-const TowerMetaData = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.TowerMetaData)
+-- Behavior: tower recipe config (registered by TowerMetaData.EnsureLoaded)
 
 export type TowerTargetKind = "Buildings" | "Ground" | "Air" | "All"
 
@@ -17,6 +16,7 @@ export type TowerData = {
 	BaseHealth: number,
 	BaseDamage: number,
 	BaseRange: number,
+	DelayAttack: number,
 	EnergyCost: number,
 	Position: Vector3,
 	Walk: number,
@@ -31,6 +31,7 @@ const Tower: TowerData = {
 	BaseHealth = 1200,
 	BaseDamage = 35,
 	BaseRange = 18,
+	DelayAttack = 1,
 	EnergyCost = 0,
 	Position = Vector3.zero,
 	Walk = 0,
@@ -42,4 +43,4 @@ const Tower: TowerData = {
 	}),
 }
 
-return TowerMetaData.new(Tower)
+return Tower

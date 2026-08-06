@@ -78,18 +78,6 @@ export type TowerEntityData = {
 	HealthPerLevel: number,
 }
 
-const TOWER_RECIPES: { [string]: TowerEntityData } = {
-	Dummy = {
-		Id = "Dummy",
-		BaseHealth = 1200,
-		BaseDamage = 140,
-		BaseRange = 18,
-		DelayAttack = 1,
-		TargetKind = "All",
-		HealthPerLevel = 140,
-	},
-}
-
 local function findInFolder(folder: Folder, Name: EntityName): EntityDef?
 	for _, child in folder:GetChildren() do
 		if child:IsA("ModuleScript") and child.Name == Name then
@@ -263,6 +251,15 @@ end
 function EntityHelp.GetEntityCharacterForUID(uid: string): Model?
 	if type(uid) ~= "string" or uid == "" then
 		return nil
+	end
+
+	local EntityRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.EntityRegistry)
+	local entity = EntityRegistry.GetByUid(uid)
+	if entity then
+		local model = EntityRegistry.GetModel(entity)
+		if model then
+			return model
+		end
 	end
 
 	local entityFolder = getEntitysFolder()
@@ -580,7 +577,22 @@ function EntityHelp.GetTowerDataById(towerId: string): TowerEntityData?
 		return nil
 	end
 
-	return TOWER_RECIPES[towerId]
+	local TowerCardRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.TowerCardRegistry)
+	TowerCardRegistry.EnsureLoaded()
+	local params = TowerCardRegistry.Get(towerId)
+	if not params then
+		return nil
+	end
+
+	return {
+		Id = params.Id,
+		BaseHealth = params.BaseHealth,
+		BaseDamage = params.BaseDamage,
+		BaseRange = params.BaseRange,
+		DelayAttack = params.DelayAttack,
+		TargetKind = params.TargetKind :: "Buildings" | "Ground" | "Air" | "All",
+		HealthPerLevel = params.HealthPerLevel,
+	}
 end
 
 -- Unit card recipe by CardId (e.g. "Sabre") — not player save data

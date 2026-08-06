@@ -4,6 +4,10 @@ const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 const CardsServiceUtils = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceUtils)
 const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
+const EntityRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.EntityRegistry)
+const AttributeMirror = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.AttributeMirror)
+const Health = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Health)
+const Mega = require(ReplicatedStorage.Shareds.Classes.Mega)
 
 export type PlayerCanEmitAttackResult = {
 	UID: string,
@@ -74,10 +78,8 @@ const function resolveHitDamage(attacker: Model, session: AttackSession): number
 		return 0
 	end
 
-	local level = attacker:GetAttribute("Level")
-	if type(level) ~= "number" then
-		level = entityData.Level
-	end
+	local levelAttr = attacker:GetAttribute("Level")
+	local level = if type(levelAttr) == "number" then levelAttr else entityData.Level
 
 	return EntityHelper.CalculateDamage({
 		BaseDamage = entityData.BaseDamage,
@@ -287,6 +289,14 @@ function CombateStateHandler.ApplyDamageToTarget(
 	local humanoid = target:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then
 		return false
+	end
+
+	local entity = EntityRegistry.GetByModel(target)
+	if entity then
+		local currentAny = (Mega.World :: any):get(entity, Health)
+		local current = if type(currentAny) == "number" then currentAny else humanoid.Health
+		AttributeMirror.SetHealth(entity, math.max(0, current - damage))
+		return true
 	end
 
 	humanoid:TakeDamage(damage)

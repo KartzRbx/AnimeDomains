@@ -8,8 +8,9 @@ const World = jecs.World.new(true)
 
 const Utils = {
 	GetUnitMetadataWithID = function(UnitID: string)
-		const ID = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.ID)
-		const TemplateTag = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Tags.TemplateTag)
+		-- Lazy requires: Primitives/Tags require Mega.World — never pull them at Mega load time
+		const ID = (require :: any)(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.ID)
+		const TemplateTag = (require :: any)(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Tags.TemplateTag)
 		for entity, id in World:query(ID):with(TemplateTag) do
 			if id == UnitID then
 				return entity

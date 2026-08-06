@@ -1,6 +1,5 @@
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UnitsMetaData = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.UnitsMetaData)
 local Icons = require(ReplicatedStorage.Shareds.Constants.PrimaryDatas.Icons)
 
 export type UnitTargetKind = "Buildings" | "Ground" | "Air" | "All"
@@ -63,4 +62,4 @@ local Unit: UnitData = {
 	}),
 }
 
-return UnitsMetaData.new(Unit)
+return Unit
