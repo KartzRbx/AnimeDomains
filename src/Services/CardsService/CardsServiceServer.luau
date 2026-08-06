@@ -13,6 +13,8 @@ const CardsServiceType = require(ReplicatedStorage.Shareds.Services.CardsService
 const CardsServiceUtils = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceUtils)
 const EnergyConstants = require(ReplicatedStorage.Shareds.Services.EnergyService.EnergyConstants)
 const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
+const EntityRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.EntityRegistry)
+const AttributeMirror = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.AttributeMirror)
 
 local CardServiceServer = {
 	Initialized = false,
@@ -167,6 +169,11 @@ function CardServiceServer.StateChangeReadyForUID(self: CardServiceServer, owner
 	end
 
 	EntityModel:SetAttribute('Ready', true)
+
+	local ecsEntity = EntityRegistry.GetByUid(UID)
+	if ecsEntity then
+		AttributeMirror.SetReady(ecsEntity, true)
+	end
 	return
 end
 

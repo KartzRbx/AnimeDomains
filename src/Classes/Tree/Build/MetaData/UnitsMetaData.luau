@@ -1,5 +1,5 @@
 --!strict
--- Behavior: jecs factory — creates Unit entity + card registry for UI
+-- Behavior: jecs factory — unit templates + runtime SpawnFromId
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Mega = require(ReplicatedStorage.Shareds.Classes.Mega)
@@ -84,15 +84,22 @@ export type UnitCardParams = {
 	ExpMax: number,
 }
 
+export type SpawnFromIdOptions = {
+	Position: Vector3?,
+	Model: Model?,
+	Level: number?,
+	Health: number?,
+	UID: string?,
+	Owner: string?,
+	Team: string?,
+	Ready: boolean?,
+	Kind: string?,
+}
+
 local UnitsFolder = ReplicatedStorage.Shareds.Classes.Tree.Datas.Units
 local datasLoaded = false
 local CardRegistry: { [string]: UnitCardParams } = {}
 local TemplateRegistry: { [string]: UnitEntity } = {}
-
-export type SpawnFromIdOptions = {
-	Position: Vector3?,
-	Model: Model?,
-}
 
 local function resolveUnitIcons(unitId: string): (string, string)
 	local units = Icons.Cards.Units :: { [string]: { Front: string, Back: string } }
@@ -130,7 +137,12 @@ local function toCardParams(config: UnitConfig): UnitCardParams
 	}
 end
 
-local function new(config: UnitConfig): UnitEntity
+local function registerTemplate(config: UnitConfig): UnitEntity
+	local existing = TemplateRegistry[config.Id]
+	if existing then
+		return existing
+	end
+
 	local entity = World:entity()
 	World:set(entity, Jecs.Name, `Unit.{config.Id}`)
 	World:add(entity, UnitTag)
@@ -164,8 +176,32 @@ local function new(config: UnitConfig): UnitEntity
 end
 
 local function EnsureLoaded()
-	UnitCardRegistry.EnsureLoaded()
+	if datasLoaded then
+		return
+	end
 	datasLoaded = true
+	UnitCardRegistry.MarkLoaded()
+
+	for _, child in UnitsFolder:GetChildren() do
+		if not child:IsA("ModuleScript") then
+			continue
+		end
+
+		local mod = (require :: any)(child)
+		if type(mod) ~= "table" then
+			continue
+		end
+
+		if type(mod.Id) == "string" then
+			registerTemplate(mod :: UnitConfig)
+		else
+			for _, cfg in mod do
+				if type(cfg) == "table" and type(cfg.Id) == "string" then
+					registerTemplate(cfg :: UnitConfig)
+				end
+			end
+		end
+	end
 end
 
 local function GetCardParams(unitId: string): UnitCardParams?
@@ -178,7 +214,6 @@ local function GetTemplate(unitId: string): UnitEntity?
 	return TemplateRegistry[unitId]
 end
 
--- New entity with the same params as the ID (does not reuse the metadata)
 local function SpawnFromId(unitId: string, options: SpawnFromIdOptions?): UnitEntity?
 	EnsureLoaded()
 
@@ -188,14 +223,24 @@ local function SpawnFromId(unitId: string, options: SpawnFromIdOptions?): UnitEn
 		return nil
 	end
 
+	local UID = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.UID)
+	local Owner = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Owner)
+	local Ready = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Ready)
+	local AttackEnabled = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.AttackEnabled)
+	local Kind = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Kind)
+	local Team = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Team)
+	local Attacking = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.Attacking)
+	local BuildingTarget = require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Primitives.BuildingTarget)
+
 	local entity = World:entity()
 	World:set(entity, Jecs.Name, `Unit.{unitId}.Instance`)
 	World:add(entity, UnitTag)
 
 	World:set(entity, ID, World:get(template, ID))
-	World:set(entity, Level, World:get(template, Level))
+	World:set(entity, Level, if options and options.Level then options.Level else World:get(template, Level))
 	World:set(entity, HealthBase, World:get(template, HealthBase))
-	World:set(entity, Health, World:get(template, HealthBase))
+	local health = if options and options.Health then options.Health else World:get(template, HealthBase)
+	World:set(entity, Health, health)
 	World:set(entity, BaseDamage, World:get(template, BaseDamage))
 	World:set(entity, Damage, World:get(template, BaseDamage))
 	World:set(entity, ModelID, World:get(template, ModelID))
@@ -210,7 +255,12 @@ local function SpawnFromId(unitId: string, options: SpawnFromIdOptions?): UnitEn
 	World:set(entity, TargetKing, World:get(template, TargetKing))
 	World:set(entity, CanRetargetTroops, World:get(template, CanRetargetTroops))
 	World:set(entity, Target, 0)
+	World:set(entity, BuildingTarget, 0)
 	World:set(entity, LastAttack, 0)
+	World:set(entity, Ready, if options and options.Ready ~= nil then options.Ready else false)
+	World:set(entity, AttackEnabled, false)
+	World:set(entity, Attacking, false)
+	World:set(entity, Kind, if options and options.Kind then options.Kind else "Unit")
 
 	local position = if options and options.Position then options.Position else Vector3.zero
 	World:set(entity, Position, position)
@@ -218,12 +268,27 @@ local function SpawnFromId(unitId: string, options: SpawnFromIdOptions?): UnitEn
 	if options and options.Model then
 		World:set(entity, ModelComponent, options.Model)
 	end
+	if options and options.UID then
+		World:set(entity, UID, options.UID)
+	end
+	if options and options.Owner then
+		World:set(entity, Owner, options.Owner)
+	end
+	if options and options.Team then
+		World:set(entity, Team, options.Team)
+	end
 
 	return entity
 end
 
+-- Compat: datas that still call .new register a template
+local function new(config: UnitConfig): UnitEntity
+	return registerTemplate(config)
+end
+
 return {
 	new = new,
+	registerTemplate = registerTemplate,
 	EnsureLoaded = EnsureLoaded,
 	GetCardParams = GetCardParams,
 	GetTemplate = GetTemplate,

@@ -3,7 +3,6 @@
 -- DeployTime: Clash Royale wiki — standard ground troops use 1 sec (Archers, Knight, Barbarians, etc.)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UnitsMetaData = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.UnitsMetaData)
 local Icons = require(ReplicatedStorage.Shareds.Constants.PrimaryDatas.Icons)
 
 type PlaceholderDef = {
@@ -30,8 +29,9 @@ local PLACEHOLDERS: { PlaceholderDef } = {
 	{ Id = "PlaceholderSeven", Name = "Placeholder 7", EnergyCost = 4, DeployTime = 1, Class = "A", Level = 10, BaseHealth = 510, BaseDamage = 80 },
 }
 
+local configs = {}
 for _, def in PLACEHOLDERS do
-	UnitsMetaData.new({
+	table.insert(configs, {
 		Id = def.Id,
 		Name = def.Name,
 		Level = def.Level,
@@ -55,4 +55,4 @@ for _, def in PLACEHOLDERS do
 	})
 end
 
-return true
+return configs

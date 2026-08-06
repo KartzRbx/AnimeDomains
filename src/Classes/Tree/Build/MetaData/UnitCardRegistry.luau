@@ -26,7 +26,6 @@ export type UnitCardParams = {
 
 local registry: { [string]: UnitCardParams } = {}
 local datasLoaded = false
-local UnitsFolder = ReplicatedStorage.Shareds.Classes.Tree.Datas.Units
 
 local UnitCardRegistry = {}
 
@@ -46,18 +45,14 @@ function UnitCardRegistry.IsLoaded(): boolean
 	return datasLoaded
 end
 
--- Carrega Modulescripts de Units (popula registry via UnitsMetaData.new)
+-- Carrega Modulescripts de Units via UnitsMetaData.EnsureLoaded
 function UnitCardRegistry.EnsureLoaded()
 	if datasLoaded then
 		return
 	end
-	datasLoaded = true
 
-	for _, child in UnitsFolder:GetChildren() do
-		if child:IsA("ModuleScript") then
-			(require :: any)(child)
-		end
-	end
+	local UnitsMetaData = require(script.Parent.UnitsMetaData)
+	UnitsMetaData.EnsureLoaded()
 end
 
 return UnitCardRegistry

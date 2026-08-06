@@ -1,11 +1,9 @@
 --!strict
 const HttpService = game:GetService("HttpService")
-const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 const RunService = game:GetService("RunService")
 const TweenService = game:GetService("TweenService")
 const janitor = require(ReplicatedStorage.Packages.janitor)
-const Pathfinder = require(ReplicatedStorage.Packages.Pathfinder)
 const EntityActionManager = require(ReplicatedStorage.Shareds.Constants.PrimaryDatas.AttacksData.EntityActionManager)
 const CardsCutscenes = require(script.Parent.CardsCutscenes)
 const CardsServiceType = require(ReplicatedStorage.Shareds.Services.CardsService.CardsServiceType)
@@ -13,19 +11,13 @@ const CardsServiceUtils = require(ReplicatedStorage.Shareds.Services.CardsServic
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
 const AssetsUtils = require(ReplicatedStorage.Shareds.Utils.AssetsUtils)
 const CollisionGroupsUtils = require(ReplicatedStorage.Shareds.Utils.CollisionGroupUtil)
-const HumanoidManager = require(ReplicatedStorage.Shareds.Utils.HumanoidManager)
 const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 const CombateStateHandler = require(ReplicatedStorage.Shareds.Workers.CombateStateHandler)
 
-const MOVING_TARGET_TRACKING_RANGE = 400
-const TROOP_AGGRO_LEAVE_MULTIPLIER = 1.25
 const STATE_READY_ATT_NAME = "Ready"
 const STATE_ATTACK_ENABLED_ATT_NAME = 'AttackEnabled'
 const STATE_ATTACKING_ATT_NAME = 'Attacking'
-const PATH_TARGET_MOVE_EPS = 2
-
-type TargetKind = "Buildings" | "Ground" | "Air" | "All"
 
 const CardsEntityManager = {}
 
@@ -38,7 +30,6 @@ const _EntityCache = workspace:WaitForChild('Game'):FindFirstChild(PATH_ENTITY_N
 const PATH_BILLBOARD_UNIT = 'UnitBillboard'
 const _UnitBillboard = AssetsUtils.getMiscTemplate('Gameplay', PATH_BILLBOARD_UNIT) :: CardsServiceType.UnitBillboard
 
-const DEFAULT_TOWER_ATTACK_DELAY = 1
 const DEATH_DESPAWN_DELAY = 0.75
 const DEATH_ANIM_NAME = "Death"
 
@@ -50,73 +41,37 @@ local clientAttackValidationInitialized = false
 local clientAttackReplicaInitialized = false
 const attackValidationPending: { [string]: BindableEvent } = {}
 
+const function getEntityRegistry()
+	return require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.EntityRegistry)
+end
+
+const function getAttributeMirror()
+	return require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.AttributeMirror)
+end
+
+const function getUnitsMetaData()
+	return require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.UnitsMetaData)
+end
+
+const function getMovementSystem()
+	return require(ReplicatedStorage.Shareds.Classes.Tree.Systems.MovementSystem)
+end
+
+const function getAttackSystem()
+	return require(ReplicatedStorage.Shareds.Classes.Tree.Systems.AttackSystem)
+end
+
+const function getDeadTag()
+	return require(ReplicatedStorage.Shareds.Classes.Tree.Build.Components.Tags.Dead)
+end
+
+const function getMega()
+	return require(ReplicatedStorage.Shareds.Classes.Mega)
+end
+
 
 const function ConsoleLog(message: string)
     return print('[CARD SYSTEM]: ', message)
-end
-
-const function getTowerAnchor(tower: Instance): Vector3?
-	local grip = tower:FindFirstChild("GripEntity", true)
-	if grip and grip:IsA("Attachment") then
-		return grip.WorldPosition
-	end
-	if tower:IsA("Model") then
-		return tower:GetPivot().Position
-	end
-	if tower:IsA("BasePart") then
-		return tower.Position
-	end
-	return nil
-end
-
-const function getDistance(a: Vector3, b: Vector3): number
-	return (a - b).Magnitude
-end
-
-const function getDistanceSq(a: Vector3, b: Vector3): number
-	local delta = a - b
-	return delta.X * delta.X + delta.Y * delta.Y + delta.Z * delta.Z
-end
-
-const function getXZDistance(a: Vector3, b: Vector3): number
-	local dx = a.X - b.X
-	local dz = a.Z - b.Z
-	
-	return math.sqrt(dx * dx + dz * dz)
-end
-
-const function getXZDistanceSq(a: Vector3, b: Vector3): number
-	local dx = a.X - b.X
-	local dz = a.Z - b.Z
-	return dx * dx + dz * dz
-end
-
-const function hasFoundTower(unitPos: Vector3, tower: Model, detectionRadius: number): boolean
-	local anchor = getTowerAnchor(tower)
-	if not anchor then
-		return false
-	end
-	return getDistance(unitPos, anchor) <= detectionRadius
-end
-
-const function isWithinRange(origin: Vector3, targetPos: Vector3, range: number): boolean
-	return getDistanceSq(origin, targetPos) <= range * range
-end
-
-const function matchesTargetKind(targetKind: TargetKind, enemyKind: string): boolean
-	if targetKind == "All" then
-		return true
-	end
-	if targetKind == "Buildings" then
-		return enemyKind == "Tower"
-	end
-	if targetKind == "Ground" then
-		return enemyKind == "Unit"
-	end
-	if targetKind == "Air" then
-		return enemyKind == "Air"
-	end
-	return false
 end
 
 function CardsEntityManager._GetEntityWithUID(self: CardsEntityManager, UID:string): CardsServiceType.CardEntityEntry?
@@ -218,521 +173,30 @@ function CardsEntityManager.BuildEntityPath(
 	assert(RunService:IsServer(), "[CardsEntityManager] BuildEntityPath is server-only")
 
 	const entityData = EntityHelper.GetEntityDataByCardId(CardId)
-	const cardData = CardsServiceUtils._GetCardDataWithID(CardId, OwnerPlayer)
 	const teamName = CardsServiceUtils.GetPlayerTeam(OwnerPlayer)
-
-	if not entityData or not cardData or not teamName then
+	if not entityData or not teamName then
 		warn("[CardsEntityManager] BuildEntityPath missing entity/card/team data")
 		return
 	end
 
-	local currentBuildingTarget = EntityHelper.GetClosestEnemyTower(teamName, spawnPos)
-	if not currentBuildingTarget then
-		warn("[CardsEntityManager] BuildEntityPath missing targetable enemy towers")
+	CollisionGroupsUtils.AssignEntity(Model)
+	Model:PivotTo(CardsServiceUtils.GetEntityGoalCFrame(OwnerPlayer, spawnPos, Model))
+
+	local entity = getEntityRegistry().GetByUid(UID)
+	if not entity then
+		warn("[CardsEntityManager] BuildEntityPath missing ECS entity for", UID)
 		return
 	end
 
-	-- attack metatable
-	local __attackMeta = EntityActionManager:GetUnitAttack(UID)
-
-	const targetKind = entityData.TargetKind :: TargetKind
-	const unitRange = EntityHelper.CalculateRange({
-		BaseRange = entityData.BaseRange,
-	})
-	const attackDelay = entityData.DelayAttack
-	const canRetargetTroops = entityData.CanRetargetTroops and targetKind ~= "Buildings"
-	const ATTACK_PREP_LEAD = 0.35
-
-	local lastAttackAt = -math.huge
-
-	local pathTarget: BasePart
-	local syncedPathTargetPos: Vector3? = nil
-
-	const function getTowerDetectionRadius(tower: Model): number
-		return EntityHelper.GetTowerDetectionRadius(tower, unitRange)
-	end
-
-	const function getTowerApproachStopRadius(tower: Model): number
-		return EntityHelper.GetTowerApproachStopRadius(tower, unitRange)
-	end
-
-	const function syncBuildingPathTarget(tower: Model): boolean
-		local origin = Model.HumanoidRootPart.Position
-		local nextPos = EntityHelper.GetTowerApproachPosition(
-			tower,
-			origin,
-			getTowerApproachStopRadius(tower)
-		)
-
-		if syncedPathTargetPos and getXZDistanceSq(syncedPathTargetPos, nextPos) < PATH_TARGET_MOVE_EPS * PATH_TARGET_MOVE_EPS then
-			return false
-		end
-
-		pathTarget.Position = nextPos
-		syncedPathTargetPos = nextPos
-		return true
-	end
-
-	CollisionGroupsUtils.AssignEntity(Model)
-	Model.Humanoid.AutoRotate = true
-	Model:PivotTo(CardsServiceUtils.GetEntityGoalCFrame(OwnerPlayer, spawnPos, Model))
-	Model.Humanoid.WalkSpeed = entityData.Walk
-
-	const hum = HumanoidManager.new(Model, {
-		EntityKind = "Unit",
-		EntityId = entityData.ModelID,
-	})
-
-	
-	const Humanoid = Model.Humanoid
-	const Animator = Humanoid:FindFirstChildOfClass('Animator')
-
-	const function GetEntityAnimations(): {[string]: AnimationTrack}?
-		local __cache = self:_GetEntityWithUID(UID)
-
-		--[[
-			TODO - Futuramente mudar para animações de entidades locais
-		const IdleAnimation = AssetsUtils.getEntityAnimation('Unit', CardId, 'Idle')
-		
-		]]
-		local WalkAnimation = AssetsUtils.getEntityAnimation('Unit', CardId, 'Walk')
-		local IdleAnimation = AnimationUtil.ResolveDefaultAnimation('Idle')
-
-		if not WalkAnimation  then
-			WalkAnimation = AnimationUtil.ResolveDefaultAnimation('Walk')
-		end
-
-		if not IdleAnimation or not WalkAnimation then 
-			warn('Animations not found in __universal__')
-			return nil
-		end
-
-		if not __cache then
-			warn('Invalid Cache params')
-			return nil
-		end
-
-		if not Animator then 
-			warn('Animator not found in: ' .. CardId .. ' UID: ' .. UID)
-			return nil
-		end
-
-		if __cache.Idle == nil then
-			__cache.Idle = Animator:LoadAnimation(IdleAnimation)
-		end
-		if __cache.Walk == nil then
-			__cache.Walk = Animator:LoadAnimation(WalkAnimation)
-		end
-
-		if typeof(__cache.Idle) ~= "Instance" or not __cache.Idle:IsA("AnimationTrack") then
-			warn("Idle AnimationTrack failed to load.")
-			return nil
-		end
-		if typeof(__cache.Walk) ~= "Instance" or not __cache.Walk:IsA("AnimationTrack") then
-			warn("Walk AnimationTrack failed to load.")
-			return nil
-		end
-
-		return {
-			Idle = __cache.Idle,
-			Walk = __cache.Walk
-		}:: {[string]: AnimationTrack}
-	end
-
-	type LocomotionState = "Idle" | "Walk"
-	local locomotionState: LocomotionState? = nil
-	const MOVING_THRESHOLD = 0.35
-
-	const function isUnitMoving(): boolean
-		local vel = Model.HumanoidRootPart.AssemblyLinearVelocity
-		local horizontalVel = Vector3.new(vel.X, 0, vel.Z)
-		return horizontalVel.Magnitude > MOVING_THRESHOLD
-	end
-
-	const function getWantLocomotion(): LocomotionState
-		if Model:GetAttribute(STATE_READY_ATT_NAME) ~= true then
-			return "Idle"
-		end
-
-		if Model:GetAttribute(STATE_ATTACK_ENABLED_ATT_NAME) == true then
-			return "Idle"
-		end
-
-		if isUnitMoving() then
-			return "Walk"
-		end
-
-		return "Idle"
-	end
-
-	const function syncLocomotionAnim()
-		local tracks = GetEntityAnimations()
-		if not tracks then
-			return
-		end
-
-		local want: LocomotionState = getWantLocomotion()
-		if want == locomotionState then
-			return
-		end
-
-		locomotionState = want
-
-		if want == "Walk" then
-			tracks.Idle:Stop(0.1)
-			tracks.Walk:Play()
-			return
-		end
-
-		tracks.Walk:Stop(0.1)
-		tracks.Idle:Play()
-	end
-
-	pathTarget = Instance.new("Part")
-	pathTarget.Name = "PathTarget"
-	pathTarget.Anchored = true
-	pathTarget.CanCollide = false
-	pathTarget.CanQuery = false
-	pathTarget.CanTouch = false
-	pathTarget.Transparency = 1
-	pathTarget.Size = Vector3.new(0.5, 0.5, 0.5)
-	pathTarget.Parent = _EntityCache
-	syncBuildingPathTarget(currentBuildingTarget)
+	getMovementSystem().RegisterUnit(entity, Model, UID, entityData.ModelID, entityData.Walk)
+	getAttackSystem().BindUnitAttack(entity, UID)
 
 	const pathJanitor = janitor.new()
 	EntityPathJanitors[UID] = pathJanitor
-
-	local currentCombatTarget: Model? = nil
-
-	const function syncAttackTargetUid()
-		if currentCombatTarget then
-			local targetUid = currentCombatTarget:GetAttribute("UID")
-			__attackMeta.TargetUID = if type(targetUid) == "string" then targetUid else ""
-			return
-		end
-
-		if currentBuildingTarget then
-			local spawnedTower = EntityHelper.GetSpawnedTowerForAnchor(currentBuildingTarget)
-			local targetUid = if spawnedTower then spawnedTower:GetAttribute("UID") else currentBuildingTarget.Name
-			__attackMeta.TargetUID = if type(targetUid) == "string" then targetUid else currentBuildingTarget.Name
-			return
-		end
-
-		__attackMeta.TargetUID = ""
-	end
-
-	syncAttackTargetUid()
-
-	local pathfinder = Pathfinder.new(Model, {
-		Target = pathTarget,
-		MovingTarget = true,
-		MovingTargetTrackingRange = MOVING_TARGET_TRACKING_RANGE,
-		MovingTargetRetargetingRange = unitRange,
-		NoPathAction = function()
-			return
-		end,
-		MoveFunction = function(destination: Vector3)
-			if Model:GetAttribute(STATE_READY_ATT_NAME) ~= true then
-				return
-			end
-
-			Model.Humanoid:MoveTo(destination)
-		end,
-		AgentParameters = EntityHelper.GetPathAgentParameters(Model),
-	})
-
-	-- StopEntityPath destroys the janitor before Model.Destroying fires, so teardown lives here
 	pathJanitor:add(function()
-		pathfinder:Destroy()
+		getMovementSystem().Unregister(entity)
+		getAttackSystem().Unbind(entity)
 	end, true)
-	pathJanitor:add(pathTarget, "Destroy")
-	pathJanitor:add(function()
-		hum:Destroy()
-	end, true)
-	pathJanitor:add(function()
-		__attackMeta:Destroy()
-	end, true)
-
-	const function getCombatTargetPosition(): Vector3?
-		if currentCombatTarget then
-			local targetHrp = currentCombatTarget:FindFirstChild("HumanoidRootPart")
-			if targetHrp and targetHrp:IsA("BasePart") then
-				return targetHrp.Position
-			end
-		end
-
-		if currentBuildingTarget then
-			return getTowerAnchor(currentBuildingTarget)
-		end
-
-		return nil
-	end
-
-	const function faceCombatTarget(targetPos: Vector3)
-		local hrp = Model.HumanoidRootPart
-		local flatTarget = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-		local dir = flatTarget - hrp.Position
-		if dir.Magnitude < 0.05 then
-			return
-		end
-
-		hrp.CFrame = CFrame.lookAt(hrp.Position, flatTarget)
-	end
-
-	const function prepareCombatForAttack()
-		if currentBuildingTarget then
-			syncBuildingPathTarget(currentBuildingTarget)
-		end
-
-		local targetPos = getCombatTargetPosition()
-		if targetPos then
-			faceCombatTarget(targetPos)
-		end
-
-		AnimationUtil.GetOrLoadTrackForUID(Model, UID, "Attack")
-	end
-
-	const function tryPrepareNextAttack()
-		if not __attackMeta.CanAttack or __attackMeta.TargetUID == "" then
-			return
-		end
-
-		const now = os.clock()
-		local remainingCooldown = attackDelay - (now - lastAttackAt)
-		local isAttacking = Model:GetAttribute(STATE_ATTACKING_ATT_NAME) == true
-
-		if isAttacking or remainingCooldown <= ATTACK_PREP_LEAD then
-			prepareCombatForAttack()
-		end
-	end
-
-	local pathfinderRunning = false
-
-	const function ensurePathfinderRunning()
-		if pathfinderRunning then
-			return
-		end
-
-		pathfinderRunning = true
-		pathfinder:Run()
-	end
-
-	const function pausePathfinder()
-		if not pathfinderRunning then
-			return
-		end
-
-		pathfinder:Stop()
-		pathfinderRunning = false
-	end
-
-	const function unlockEntityMovement()
-		if Model:GetAttribute(STATE_READY_ATT_NAME) ~= true then
-			return
-		end
-
-		Model.Humanoid.WalkSpeed = entityData.Walk
-	end
-
-	const function setAttackReady(enabled: boolean)
-		if Model:GetAttribute(STATE_ATTACK_ENABLED_ATT_NAME) == enabled then
-			__attackMeta.CanAttack = enabled
-			return
-		end
-
-		Model:SetAttribute(STATE_ATTACK_ENABLED_ATT_NAME, enabled)
-		__attackMeta.CanAttack = enabled
-
-		if enabled then
-			Model.Humanoid.AutoRotate = false
-			pausePathfinder()
-			prepareCombatForAttack()
-		else
-			Model.Humanoid.AutoRotate = true
-			ensurePathfinderRunning()
-		end
-
-		syncLocomotionAnim()
-	end
-
-	const function isEnemyModel(other: Model): boolean
-		if other.Name == Model.Name then
-			return false
-		end
-
-		local owner = other:GetAttribute("Owner")
-		if owner == OwnerPlayer.Name then
-			return false
-		end
-
-		local humanoid = other:FindFirstChildOfClass("Humanoid")
-		if not humanoid or humanoid.Health <= 0 then
-			return false
-		end
-
-		return true
-	end
-
-	const function findClosestEnemyTroop(origin: Vector3): Model?
-		if not canRetargetTroops then
-			return nil
-		end
-
-		local entityFolder = _EntityCache
-		if not entityFolder then
-			return nil
-		end
-
-		local best: Model? = nil
-		local aggroRangeSq = unitRange * unitRange
-		local bestDistSq = math.huge
-
-		for _, child in entityFolder:GetChildren() do
-			if not child:IsA("Model") or not isEnemyModel(child) then
-				continue
-			end
-
-			local enemyKind = child:GetAttribute("Kind")
-			if type(enemyKind) ~= "string" or not matchesTargetKind(targetKind :: TargetKind, enemyKind) then
-				continue
-			end
-
-			local hrp = child:FindFirstChild("HumanoidRootPart")
-			if not hrp or not hrp:IsA("BasePart") then
-				continue
-			end
-
-			local distSq = getDistanceSq(origin, hrp.Position)
-			if distSq <= aggroRangeSq and distSq < bestDistSq then
-				best = child
-				bestDistSq = distSq
-			end
-		end
-
-		return best
-	end
-
-	const function resumeBuildingPath()
-		currentCombatTarget = nil
-
-		local origin = Model.HumanoidRootPart.Position
-		local tower = EntityHelper.GetClosestEnemyTower(teamName, origin)
-		if not tower then
-			pausePathfinder()
-			setAttackReady(false)
-			return
-		end
-
-		currentBuildingTarget = tower
-		syncBuildingPathTarget(tower)
-		syncAttackTargetUid()
-		pathfinder:ChangeTarget(pathTarget)
-		setAttackReady(hasFoundTower(origin, tower, getTowerDetectionRadius(tower)))
-	end
-
-	const function updateAttackingState(origin: Vector3)
-		if currentCombatTarget then
-			local targetHrp = currentCombatTarget:FindFirstChild("HumanoidRootPart")
-			if targetHrp and targetHrp:IsA("BasePart") then
-				setAttackReady(isWithinRange(origin, targetHrp.Position, unitRange))
-				return
-			end
-		end
-
-		if currentBuildingTarget then
-			setAttackReady(hasFoundTower(origin, currentBuildingTarget, getTowerDetectionRadius(currentBuildingTarget)))
-		end
-	end
-
-	const function refreshCombatTarget()
-		if Model.Humanoid.Health <= 0 then
-			pausePathfinder()
-			hum:StopAll()
-			return
-		end
-
-		local origin = Model.HumanoidRootPart.Position
-
-		if currentBuildingTarget and not EntityHelper.IsTowerAlive(currentBuildingTarget) then
-			resumeBuildingPath()
-			return
-		end
-
-		if canRetargetTroops then
-			if currentCombatTarget then
-				local hum = currentCombatTarget:FindFirstChildOfClass("Humanoid")
-				local targetHrp = currentCombatTarget:FindFirstChild("HumanoidRootPart")
-				local lostTarget = not hum
-					or hum.Health <= 0
-					or not targetHrp
-					or not targetHrp:IsA("BasePart")
-					or not isWithinRange(origin, targetHrp.Position, unitRange * TROOP_AGGRO_LEAVE_MULTIPLIER)
-
-				if lostTarget then
-					resumeBuildingPath()
-				end
-			end
-
-			if not currentCombatTarget then
-				local troop = findClosestEnemyTroop(origin)
-				if troop then
-					currentCombatTarget = troop
-					syncAttackTargetUid()
-					pathfinder:ChangeTarget(troop)
-				elseif currentBuildingTarget then
-					syncBuildingPathTarget(currentBuildingTarget)
-				end
-			end
-		elseif currentBuildingTarget then
-			syncBuildingPathTarget(currentBuildingTarget)
-		end
-
-		syncAttackTargetUid()
-		updateAttackingState(origin)
-	end
-
-	pathJanitor:add(pathfinder.OnIdle:Connect(function()
-		syncLocomotionAnim()
-		updateAttackingState(Model.HumanoidRootPart.Position)
-	end), "Disconnect")
-
-	pathJanitor:add(pathfinder.OnPathCompleted:Connect(function()
-		syncLocomotionAnim()
-		updateAttackingState(Model.HumanoidRootPart.Position)
-	end), "Disconnect")
-
-	pathJanitor:add(pathfinder.OnWaypointReached:Connect(function()
-		syncLocomotionAnim()
-	end), "Disconnect")
-
-	const function tryContinuousAttack()
-		if not __attackMeta.CanAttack then
-			return
-		end
-
-		if __attackMeta.TargetUID == "" then
-			return
-		end
-
-		if Model:GetAttribute(STATE_ATTACKING_ATT_NAME) == true then
-			return
-		end
-
-		const now = os.clock()
-		if now - lastAttackAt < attackDelay then
-			return
-		end
-
-		__attackMeta:Attack()
-		lastAttackAt = now
-	end
-
-	pathJanitor:add(RunService.Heartbeat:Connect(function()
-		refreshCombatTarget()
-		tryPrepareNextAttack()
-		tryContinuousAttack()
-		syncLocomotionAnim()
-	end), "Disconnect")
 
 	pathJanitor:add(Model.Destroying:Connect(function()
 		AnimationUtil.ClearTrackCacheForUID(UID)
@@ -740,27 +204,17 @@ function CardsEntityManager.BuildEntityPath(
 		EntityPathJanitors[UID] = nil
 	end), "Disconnect")
 
-	pathJanitor:add(Model:GetAttributeChangedSignal(STATE_READY_ATT_NAME):Connect(function()
-		unlockEntityMovement()
-		syncLocomotionAnim()
-	end), "Disconnect")
-
 	pathJanitor:add(Model.Humanoid.Died:Connect(function()
 		self:DespawnEntity(UID, Model)
 	end), "Disconnect")
-
-	ensurePathfinderRunning()
-	refreshCombatTarget()
-	unlockEntityMovement()
-	syncLocomotionAnim()
 end
 
 function CardsEntityManager.BuildTowerAttack(
 	_self: CardsEntityManager,
 	model: Model,
-	towerData: EntityHelper.TowerEntityData,
+	_towerData: EntityHelper.TowerEntityData,
 	uid: string,
-	teamName: EntityHelper.TeamName
+	_teamName: EntityHelper.TeamName
 )
 	assert(RunService:IsServer(), "[CardsEntityManager] BuildTowerAttack is server-only")
 
@@ -770,216 +224,14 @@ function CardsEntityManager.BuildTowerAttack(
 		TowerAttackJanitors[uid] = nil
 	end
 
-	const hrp = model:FindFirstChild("HumanoidRootPart")
-	if not hrp or not hrp:IsA("BasePart") then
-		warn(`[CardsEntityManager] Tower missing HumanoidRootPart: {uid}`)
+	local entity = getEntityRegistry().GetByUid(uid)
+	if not entity then
+		warn("[CardsEntityManager] BuildTowerAttack missing ECS entity for", uid)
 		return
 	end
 
-	const attackDelay = towerData.DelayAttack > 0 and towerData.DelayAttack or DEFAULT_TOWER_ATTACK_DELAY
-	const towerRange = EntityHelper.CalculateRange({
-		BaseRange = towerData.BaseRange,
-	})
-	const resolvedTargetKind: TargetKind = towerData.TargetKind
-	const enemyTeam = PlacementZoneUtils.GetEnemyTeam(teamName)
-	local lastAttackAt = -math.huge
-	local currentTarget: Model? = nil
-
 	const attackJanitor = janitor.new()
 	TowerAttackJanitors[uid] = attackJanitor
-
-	const function getEntityTeam(entityModel: Model): string?
-		const team = entityModel:GetAttribute("Team")
-		if type(team) == "string" then
-			return team
-		end
-
-		const owner = entityModel:GetAttribute("Owner")
-		if type(owner) ~= "string" then
-			return nil
-		end
-
-		if owner == "Enemy" then
-			return "Two"
-		end
-
-		const player = Players:FindFirstChild(owner)
-		if player and player:IsA("Player") then
-			return CardsServiceUtils.GetPlayerTeam(player)
-		end
-
-		return nil
-	end
-
-	const function isEnemyUnit(other: Model): boolean
-		if other.Name == model.Name then
-			return false
-		end
-
-		if other:GetAttribute("Kind") == "Tower" then
-			return false
-		end
-
-		if getEntityTeam(other) ~= enemyTeam then
-			return false
-		end
-
-		const otherHumanoid = other:FindFirstChildOfClass("Humanoid")
-		if not otherHumanoid or otherHumanoid.Health <= 0 then
-			return false
-		end
-
-		const enemyKind = other:GetAttribute("Kind")
-		if type(enemyKind) ~= "string" or not matchesTargetKind(resolvedTargetKind, enemyKind) then
-			return false
-		end
-
-		return true
-	end
-
-	const function findClosestEnemy(origin: Vector3): Model?
-		if not _EntityCache then
-			return nil
-		end
-
-		local best: Model? = nil
-		const rangeSq = towerRange * towerRange
-		local bestDistSq = math.huge
-
-		for _, child in _EntityCache:GetChildren() do
-			if not child:IsA("Model") or not isEnemyUnit(child) then
-				continue
-			end
-
-			const targetHrp = child:FindFirstChild("HumanoidRootPart")
-			if not targetHrp or not targetHrp:IsA("BasePart") then
-				continue
-			end
-
-			const distSq = getDistanceSq(origin, targetHrp.Position)
-			if distSq <= rangeSq and distSq < bestDistSq then
-				best = child
-				bestDistSq = distSq
-			end
-		end
-
-		return best
-	end
-
-	const function faceTarget(target: Model)
-		const targetHrp = target:FindFirstChild("HumanoidRootPart")
-		if not targetHrp or not targetHrp:IsA("BasePart") then
-			return
-		end
-
-		const flatTarget = Vector3.new(targetHrp.Position.X, hrp.Position.Y, targetHrp.Position.Z)
-		hrp.CFrame = CFrame.lookAt(hrp.Position, flatTarget)
-	end
-
-	const function setAttackReady(enabled: boolean)
-		if model:GetAttribute(STATE_ATTACK_ENABLED_ATT_NAME) == enabled then
-			return
-		end
-
-		model:SetAttribute(STATE_ATTACK_ENABLED_ATT_NAME, enabled)
-	end
-
-	const function replicateTowerAttack(targetUID: string)
-		model:SetAttribute(STATE_ATTACKING_ATT_NAME, true)
-
-		const Debi = require(ReplicatedStorage.Shareds.Networker.NetServer).Secondary
-		Debi.BindAttack_Replica.FireAll({
-			UID = uid,
-			TargetUID = targetUID,
-		})
-
-		task.delay(attackDelay, function()
-			if model.Parent then
-				model:SetAttribute(STATE_ATTACKING_ATT_NAME, false)
-			end
-		end)
-	end
-
-	const function tryTowerAttack()
-		if not currentTarget then
-			return
-		end
-
-		const targetHrp = currentTarget:FindFirstChild("HumanoidRootPart")
-		if not targetHrp or not targetHrp:IsA("BasePart") then
-			currentTarget = nil
-			setAttackReady(false)
-			return
-		end
-
-		const origin = hrp.Position
-		if not isWithinRange(origin, targetHrp.Position, towerRange) then
-			setAttackReady(false)
-			return
-		end
-
-		setAttackReady(true)
-		faceTarget(currentTarget)
-
-		const now = os.clock()
-		if now - lastAttackAt < attackDelay then
-			return
-		end
-
-		if model:GetAttribute(STATE_ATTACKING_ATT_NAME) == true then
-			return
-		end
-
-		const targetUid = currentTarget:GetAttribute("UID")
-		if type(targetUid) ~= "string" or targetUid == "" then
-			return
-		end
-
-		const levelAttr = model:GetAttribute("Level")
-		const level: number = if type(levelAttr) == "number" then levelAttr else 1
-
-		const damage = EntityHelper.CalculateDamage({
-			BaseDamage = towerData.BaseDamage,
-			Level = level,
-		})
-
-		lastAttackAt = now
-		replicateTowerAttack(targetUid)
-
-		CombateStateHandler:ApplyDamageToTarget(currentTarget, damage, {
-			AttackerUID = uid,
-			TargetUID = targetUid,
-			HitIndex = 1,
-			HitTime = 0,
-		})
-	end
-
-	const function refreshTarget()
-		const origin = hrp.Position
-
-		if currentTarget then
-			const targetHum = currentTarget:FindFirstChildOfClass("Humanoid")
-			const targetHrp = currentTarget:FindFirstChild("HumanoidRootPart")
-			const lostTarget = not targetHum
-				or targetHum.Health <= 0
-				or not targetHrp
-				or not targetHrp:IsA("BasePart")
-				or not isWithinRange(origin, targetHrp.Position, towerRange)
-
-			if lostTarget then
-				currentTarget = nil
-				setAttackReady(false)
-			end
-		end
-
-		if not currentTarget then
-			currentTarget = findClosestEnemy(origin)
-		end
-
-		tryTowerAttack()
-	end
-
-	attackJanitor:add(RunService.Heartbeat:Connect(refreshTarget), "Disconnect")
 
 	const towerHumanoid = model:FindFirstChildOfClass("Humanoid")
 	if towerHumanoid then
@@ -992,10 +244,7 @@ function CardsEntityManager.BuildTowerAttack(
 		attackJanitor:destroy()
 		TowerAttackJanitors[uid] = nil
 	end), "Disconnect")
-
-	refreshTarget()
 end
-
 
 function CardsEntityManager.StopEntityPath(_self: CardsEntityManager, UID: string)
 	local pathJanitor = EntityPathJanitors[UID]
@@ -1047,6 +296,11 @@ function CardsEntityManager.DespawnEntity(_self: CardsEntityManager, uid: string
 	Entitys[uid] = nil
 	model:SetAttribute("Despawning", true)
 
+	local ecsEntity = getEntityRegistry().GetByUid(uid)
+	if ecsEntity then
+		getMega().World:add(ecsEntity, getDeadTag())
+	end
+
 	if model:GetAttribute("Kind") == "Tower" then
 		_self:_OnTowerDefeated(model)
 	end
@@ -1054,6 +308,10 @@ function CardsEntityManager.DespawnEntity(_self: CardsEntityManager, uid: string
 	const despawnDelay = _self:_PlayEntityDeathPresentationServer(model, uid)
 
 	task.delay(despawnDelay, function()
+		if ecsEntity and getMega().World:contains(ecsEntity) then
+			getEntityRegistry().Delete(ecsEntity)
+		end
+
 		if not model.Parent then
 			DespawnedEntities[uid] = nil
 			return
@@ -1130,6 +388,24 @@ function CardsEntityManager.newEntity(self: CardsEntityManager, payload: CardsSe
         EntityTemplate:SetAttribute(STATE_READY_ATT_NAME, false)
 		EntityTemplate:SetAttribute(STATE_ATTACKING_ATT_NAME, false)
 		EntityTemplate:SetAttribute(STATE_ATTACK_ENABLED_ATT_NAME, false)
+
+		local ecsEntity = getUnitsMetaData().SpawnFromId(payload.CardId, {
+			Position = spawnPos,
+			Model = EntityTemplate,
+			Level = cardDataPlayer.Level,
+			Health = maxHealth,
+			UID = entry,
+			Owner = payload.Player.Name,
+			Team = playerTeam,
+			Ready = false,
+			Kind = (if type(cardDataPlayer.Kind) == "string" then cardDataPlayer.Kind else "Unit") :: string,
+		})
+		if ecsEntity then
+			getEntityRegistry().Register(ecsEntity, entry, EntityTemplate)
+			getAttributeMirror().SyncEntity(ecsEntity)
+		else
+			warn("[CardsEntityManager] Failed to spawn ECS entity for", payload.CardId)
+		end
 
 		Entitys[entry] = {
 			UID = entry,

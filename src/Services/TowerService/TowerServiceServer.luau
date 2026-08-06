@@ -11,6 +11,9 @@ const AssetsUtils = require(ReplicatedStorage.Shareds.Utils.AssetsUtils)
 const CollisionGroupUtil = require(ReplicatedStorage.Shareds.Utils.CollisionGroupUtil)
 const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 const HumanoidManager = require(ReplicatedStorage.Shareds.Utils.HumanoidManager)
+const TowerMetaData = require(ReplicatedStorage.Shareds.Classes.Tree.Build.MetaData.TowerMetaData)
+const EntityRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.EntityRegistry)
+const AttributeMirror = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.AttributeMirror)
 
 const GRIP_ENTITY_NAME = "GripEntity"
 type GripEntityType = Attachment
@@ -123,6 +126,27 @@ const function spawnTeamTowers(
 		entityModel:SetAttribute(STATE_READY_ATT_NAME, true)
 		entityModel:SetAttribute(STATE_ATTACKING_ATT_NAME, false)
 		entityModel:SetAttribute(STATE_ATTACK_ENABLED_ATT_NAME, false)
+
+		local ecsEntity = TowerMetaData.SpawnFromId(towerProperties.Id, {
+			Position = spawnPos,
+			Model = entityModel,
+			Level = towerProperties.Level,
+			Health = maxHealth,
+			UID = uid,
+			Owner = teamData.Owner,
+			Team = teamKey,
+			Ready = true,
+			Kind = "Tower",
+			TowerSlot = towerKind :: string,
+			Anchor = anchorModel,
+		})
+		
+		if ecsEntity then
+			EntityRegistry.Register(ecsEntity, uid, entityModel)
+			AttributeMirror.SyncEntity(ecsEntity)
+		else
+			warn(`[TowerServiceServer] Failed to spawn ECS tower for: {towerProperties.Id}`)
+		end
 
 		HumanoidManager.new(entityModel, {
 			EntityKind = "Tower",
