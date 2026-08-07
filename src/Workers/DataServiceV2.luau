@@ -1,13 +1,12 @@
 
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 const dataservicev2 = require(ReplicatedStorage.Packages.dataservicev2)
-const PlayerData = require(ReplicatedStorage.Shareds.Constants.Datas.PlayerData)
 
-
-
+-- Paths NÃO é Schema — é PathTree. Cast pra Schema + PathOf do package quebra o LSP
+-- ("PathOf setproperty type expected, got string"). any até o package alinhar o typefunction.
 return table.freeze({
 	Server = dataservicev2.Server,
 	Client = dataservicev2.Client,
-	Paths = dataservicev2.Paths :: PlayerData.Schema,
-	Enums = dataservicev2.Enum
+	Paths = dataservicev2.Paths :: any,
+	Enums = dataservicev2.Enum,
 })

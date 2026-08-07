@@ -16,5 +16,9 @@
 	"workbench.colorCustomizations": {
 		"minimap.background": "#00000000",
 		"scrollbar.shadow": "#00000000"
-	}
+	},
+	"luau-lsp.sourcemap.enabled": true,
+	"luau-lsp.sourcemap.autogenerate": false,
+	"luau-lsp.sourcemap.sourcemapFile": "sourcemap.json",
+	"luau-lsp.fflags.enableByDefault": true
 }
