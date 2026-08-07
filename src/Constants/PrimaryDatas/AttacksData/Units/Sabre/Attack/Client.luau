@@ -44,11 +44,10 @@ return function()
 				},
 				DebugVisible = false,
 			},
-			OnHit = function(result)
+			OnHit = function(result: AttackUtils.HitResult)
 				for _, hitTarget in result.Targets do
 					if hitTarget == payload.Target then
-						print('Acertado')
-
+						-- Send vfx and sound attack here!
 						break
 					end
 				end

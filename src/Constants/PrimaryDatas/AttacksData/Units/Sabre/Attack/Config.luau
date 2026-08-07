@@ -10,7 +10,7 @@ export type SabreAttackConfig = {
 	},
 }
 
-local Config: SabreAttackConfig = {
+const Config: SabreAttackConfig = {
 	ATTACK_TIMES = {
 		[1] = 0.75,
 		[2] = 1.48,

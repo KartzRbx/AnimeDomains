@@ -33,10 +33,7 @@ function AttributeMirror.SyncEntity(entity: any)
 		model:SetAttribute(STATE_ATTACK_ENABLED_ATT_NAME, attackEnabled)
 	end
 
-	local attacking = World:get(entity, Attacking)
-	if type(attacking) == "boolean" and model:GetAttribute(STATE_ATTACKING_ATT_NAME) ~= attacking then
-		model:SetAttribute(STATE_ATTACKING_ATT_NAME, attacking)
-	end
+	-- Attacking: model is source of truth (cleared on track.Stopped). Don't ECS→Model here.
 
 	local health = World:get(entity, Health)
 	if type(health) == "number" then
@@ -59,7 +56,12 @@ end
 
 function AttributeMirror.SetAttacking(entity: any, attacking: boolean)
 	World:set(entity, Attacking, attacking)
-	AttributeMirror.SyncEntity(entity)
+	local model = World:get(entity, ModelComponent)
+	if typeof(model) == "Instance" and model:IsA("Model") then
+		if model:GetAttribute(STATE_ATTACKING_ATT_NAME) ~= attacking then
+			model:SetAttribute(STATE_ATTACKING_ATT_NAME, attacking)
+		end
+	end
 end
 
 function AttributeMirror.SetHealth(entity: any, health: number)

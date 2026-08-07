@@ -115,12 +115,17 @@ function AttackSystem.Update(_dt: number)
 		local attrAttacking = model:GetAttribute("Attacking") == true
 		AttributeMirror.SetAttacking(entity, attrAttacking)
 
+		-- DelayAttack = duração da anim de ataque (intervalo entre inícios de swing)
 		local delay = World:get(entity, DelayAttack) or 1
+		if type(delay) ~= "number" or delay <= 0 then
+			delay = 1
+		end
 		local lastAttack = World:get(entity, LastAttack) or 0
 		local isAttacking = attrAttacking
-		local remaining = delay - (now - lastAttack)
+		local elapsed = now - lastAttack
+		local cooldownReady = elapsed >= delay
 
-		if meta.CanAttack and (isAttacking or remaining <= ATTACK_PREP_LEAD) then
+		if meta.CanAttack and (isAttacking or elapsed >= delay - ATTACK_PREP_LEAD) then
 			local targetPos = if type(targetEntity) == "number" then getTargetPos(targetEntity) else nil
 			if targetPos then
 				faceTarget(model, targetPos)
@@ -128,7 +133,7 @@ function AttackSystem.Update(_dt: number)
 			AnimationUtil.GetOrLoadTrackForUID(model, uid, "Attack")
 		end
 
-		if not meta.CanAttack or isAttacking or remaining > 0 then
+		if not meta.CanAttack or isAttacking or not cooldownReady then
 			continue
 		end
 
@@ -136,6 +141,18 @@ function AttackSystem.Update(_dt: number)
 		if ok then
 			World:set(entity, LastAttack, now)
 			AttributeMirror.SetAttacking(entity, true)
+
+			-- Backup: se Stopped falhar, libera no fim do DelayAttack (= anim)
+			const swingStartedAt = now
+			task.delay(delay, function()
+				if not World:contains(entity) then
+					return
+				end
+				if World:get(entity, LastAttack) ~= swingStartedAt then
+					return
+				end
+				AttributeMirror.SetAttacking(entity, false)
+			end)
 		end
 	end
 

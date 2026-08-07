@@ -47,6 +47,20 @@ local controllers: { [number]: UnitController } = {}
 
 local MovementSystem = {}
 
+-- Pathfinder.Destroy clears the metatable while _MoveInPath's spawn may still
+-- call self:_DebugPrint → "attempt to call missing method '_DebugPrint'".
+const _pathfinderDestroy = Pathfinder.Destroy
+const _pathfinderDeadMt = {
+	__index = function(_t: any, _key: any)
+		return function() end
+	end,
+}
+function Pathfinder.Destroy(self: any)
+	self:Stop()
+	_pathfinderDestroy(self)
+	setmetatable(self, _pathfinderDeadMt)
+end
+
 const function getEntityCache(): Folder?
 	local gameFolder = Workspace:FindFirstChild("Game")
 	local cache = gameFolder and gameFolder:FindFirstChild(PATH_ENTITY_NAME)
@@ -238,18 +252,18 @@ function MovementSystem.Update(_dt: number)
 			continue
 		end
 
-		local healthModel = model:FindFirstChildOfClass("Humanoid")
+		const healthModel = model:FindFirstChildOfClass("Humanoid")
 		if healthModel and healthModel.Health <= 0 then
 			pause(controller)
 			controller.hum:StopAll()
 			continue
 		end
 
-		local origin = World:get(entity, Position) or model:GetPivot().Position
-		local unitRange = World:get(entity, Range) or 5
-		local walk = World:get(entity, Walk) or 14
-		local attackEnabled = World:get(entity, AttackEnabled) == true
-		local ready = World:get(entity, Ready) == true
+		const origin = World:get(entity, Position) or model:GetPivot().Position
+		const unitRange = World:get(entity, Range) or 5
+		const walk = World:get(entity, Walk) or 14
+		const attackEnabled = World:get(entity, AttackEnabled) == true
+		const ready = World:get(entity, Ready) == true
 
 		if ready then
 			local humanoid = model:FindFirstChildOfClass("Humanoid")

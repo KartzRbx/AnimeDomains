@@ -4,6 +4,8 @@ const ReplicatedStorage = game:GetService("ReplicatedStorage")
 const RunService = game:GetService("RunService")
 
 const janitor = require(ReplicatedStorage.Packages.janitor)
+const AttributeMirror = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.AttributeMirror)
+const EntityRegistry = require(ReplicatedStorage.Shareds.Classes.Tree.Runtime.EntityRegistry)
 const EntityActionManager = require(ReplicatedStorage.Shareds.Constants.PrimaryDatas.AttacksData.EntityActionManager)
 const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const AttackUtils = require(ReplicatedStorage.Shareds.Utils.AttackUtils)
@@ -60,10 +62,25 @@ return function()
 			return false, "Attack animation not found"
 		end
 
+		-- Garante que listeners do swing anterior fechem antes do novo Play
+		if track.IsPlaying then
+			track:Stop(0)
+		end
+
 		track:Play(0.1)
 
+		const entity = EntityRegistry.GetByUid(action.UID)
+
+		const function clearAttacking()
+			if entity then
+				AttributeMirror.SetAttacking(entity, false)
+			else
+				entityModel:SetAttribute(STATE_ATTACKING_ATT_NAME, false)
+			end
+		end
+
 		section:add(track.Stopped:Once(function()
-			entityModel:SetAttribute(STATE_ATTACKING_ATT_NAME, false)
+			clearAttacking()
 			section:cleanup()
 		end), "Disconnect")
 
@@ -79,7 +96,9 @@ return function()
 					Offset = Config.HITBOX.Offset,
 				},
 			},
-			OnHit = function(result)
+
+			
+			OnHit = function(result: AttackUtils.HitResult)
 				local hasLocked = false
 				for _, hitTarget in result.Targets do
 					if hitTarget == lockedTarget then
@@ -98,7 +117,7 @@ return function()
 					return
 				end
 
-				print(damage)
+
 				CombateStateHandler:ApplyDamageToTarget(lockedTarget, damage, {
 					AttackerUID = action.UID,
 					TargetUID = action.TargetUID,
