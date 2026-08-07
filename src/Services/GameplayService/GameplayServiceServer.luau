@@ -2,13 +2,17 @@
 
 const Players = game:GetService("Players")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const ServerScriptService = game:GetService("ServerScriptService")
 
 const EnergyService = require(script.Parent.EnergyService)
-const CardsServiceServer = require(script.Parent.CardsService)
+const CardsService = require(ServerScriptService.Source.Services.CardsService)
+const TowerService = require(ServerScriptService.Source.Services.TowerService)
+const CardsEntityManager = require(ReplicatedStorage.Shareds.Services.CardsService.Api.CardsEntityManager)
+
 const GameplayTypes = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayTypes)
 const GameplayBuildMap = require(ReplicatedStorage.Shareds.Services.GameplayService.GameplayBuildMap)
 const PlacementZoneUtils = require(ReplicatedStorage.Shareds.Utils.PlacementZoneUtil)
-const TowerServiceServer = require(script.Parent.TowerService)
+
 const Islands = require(ReplicatedStorage.Shareds.Constants.Datas.Islands)
 const Debi = require(ReplicatedStorage.Shareds.Networker.NetServer).Game
 const Janitor = require(ReplicatedStorage.Packages.janitor)
@@ -294,7 +298,7 @@ function GameplayServiceServer.StartMatch(
 		if player and player:IsA("Player") then
 			local teamName = if index == 1 then "One" else "Two"
 			local teamData = GameplayServiceServer.GetDefaultTeamData(player.Name)
-			CardsServiceServer:BindPlayerHand(player, teamData.Data.Deck)
+			CardsService:BindPlayerHand(player, teamData.Data.Deck)
 			EnergyService:FetchPlayerEnergy(player)
 
 			task.spawn(function()
@@ -309,7 +313,7 @@ function GameplayServiceServer.StartMatch(
 
 	const ownerOne = props.Players[1] or "Enemy"
 	const ownerTwo = props.Players[2] or "Enemy"
-	TowerServiceServer:SpawnMatchTowers({
+	TowerService:SpawnMatchTowers({
 		One = GameplayServiceServer.GetDefaultTeamData(ownerOne),
 		Two = GameplayServiceServer.GetDefaultTeamData(ownerTwo),
 	})
@@ -429,6 +433,30 @@ function GameplayServiceServer.GetMatchByPlayer(
 	return nil
 end
 
+-- Team "One" → Players[1] | Team "Two" → Players[2] (ou "Enemy")
+function GameplayServiceServer.GetOwnerByTeam(
+	self: GameplayServiceServer,
+	teamName: string
+): string?
+	if teamName ~= "One" and teamName ~= "Two" then
+		return nil
+	end
+
+	for _, match in self.Matches do
+		if match.Status == "Finished" then
+			continue
+		end
+
+		if teamName == "One" then
+			return match.Players[1] or "Enemy"
+		end
+
+		return match.Players[2] or "Enemy"
+	end
+
+	return nil
+end
+
 function GameplayServiceServer.EndMatch(self: GameplayServiceServer, matchId: GameplayTypes.MatchId): GameplayTypes.Result
 	const match = self.Matches[matchId]
 
@@ -441,13 +469,13 @@ function GameplayServiceServer.EndMatch(self: GameplayServiceServer, matchId: Ga
 	for _, playerName in match.Players do
 		local player = Players:FindFirstChild(playerName)
 		if player and player:IsA("Player") then
-			CardsServiceServer:ClearPlayerHand(player)
+			CardsService:ClearPlayerHand(player)
 		end
 	end
 
-	self.Matches[matchId] = nil
-	--print("[GameplayService] Match finished:", matchId)
+	print("[GameplayService] Match finished:", matchId)
 
+	self.Matches[matchId] = nil
 	return true
 end
 
@@ -473,6 +501,27 @@ function GameplayServiceServer.Init(self: GameplayServiceServer): GameplayServic
 	self.NextMatchNumber = 0
 	self.CurrentMapId = nil
 
+	-- Main tower down → end match (CardsEntityManager não require este módulo)
+	CardsEntityManager:BindOnTowerDefeated(function(attackerTeam: string, _towerSlot: string, _loserTeam: string)
+		const ownerName = self:GetOwnerByTeam(attackerTeam)
+		if not ownerName then
+			return
+		end
+
+		local player = Players:FindFirstChild(ownerName)
+		if player and player:IsA("Player") then
+			self:EndPlayerMatch(player)
+			return
+		end
+
+		for matchId: GameplayTypes.MatchId, match in self.Matches do
+			if match.Status ~= "Finished" then
+				self:EndMatch(matchId)
+				break
+			end
+		end
+	end)
+
 	-- Match only via Cmdr: start-match mapName gamemode players
 	janitor:add(Players.PlayerRemoving:Connect(function(player: Player)
 		self:EndPlayerMatch(player)
@@ -494,5 +543,4 @@ function GameplayServiceServer.Init(self: GameplayServiceServer): GameplayServic
 end
 
 export type GameplayServiceServer = typeof(GameplayServiceServer)
-
 return GameplayServiceServer

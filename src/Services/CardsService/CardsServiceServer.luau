@@ -123,25 +123,14 @@ function CardServiceServer.PutCardInPlace(
 		return
 	end
 
-	--[[
-			  00:10:09.848   ▼  {
-                    ["CardId"] = "PlaceholderFour",
-                    ["Position"] =  ▼  {
-                       ["X"] = 211.2488250732422,
-                       ["Y"] = 54.8416633605957,
-                       ["Z"] = 133.9837341308594
-                    },
-                    ["SlotIndex"] = 1
-                 }  -  Servidor - CardsEntityManager:10
-		]]
-	-- TODO: insert entity on map at payload.Position
-	const GenerateEnemyData = {
+	const GenerateEnemyData: CardsServiceType.NewEntityCardData = {
 		CardId = payload.CardId,
 		Position = payload.Position,
 		Player = player
 	} :: CardsServiceType.NewEntityCardData
 
-	const newEntityData = CardsEntityManager:newEntity(GenerateEnemyData)
+	
+	const newEntityData: CardsServiceType.CardEntityEntry? = CardsEntityManager:newEntity(GenerateEnemyData)
 	if newEntityData then
 		Debi.SpawnEntityInMapFromServer.FireAll(newEntityData)
 	end
@@ -153,7 +142,7 @@ function CardServiceServer.StateChangeReadyForUID(self: CardServiceServer, owner
 	assert(UID, 'Invalid UID')
 	assert(CardId, 'Invalid CardID')
 
-	const EntityModel = EntityFolder:FindFirstChild(('%s_%s'):format(ownerPlayer.Name, UID))
+	const EntityModel: Instance? = EntityFolder:FindFirstChild(('%s_%s'):format(ownerPlayer.Name, UID))
 	if not EntityModel then 
 		error('Entity Model not found in Folder models', 1)
 		return
@@ -170,7 +159,7 @@ function CardServiceServer.StateChangeReadyForUID(self: CardServiceServer, owner
 
 	EntityModel:SetAttribute('Ready', true)
 
-	local ecsEntity = EntityRegistry.GetByUid(UID)
+	local ecsEntity: number? = EntityRegistry.GetByUid(UID)
 	if ecsEntity then
 		AttributeMirror.SetReady(ecsEntity, true)
 	end
@@ -193,7 +182,6 @@ function CardServiceServer.Init(self: CardServiceServer): CardServiceServer
 		self:StateChangeReadyForUID(player, UID, CardID)
 	end)
 	
-
 	Players.PlayerRemoving:Connect(function(player: Player)
 		self:ClearPlayerHand(player)
 	end)

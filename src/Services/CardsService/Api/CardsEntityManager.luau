@@ -15,6 +15,8 @@ const AnimationUtil = require(ReplicatedStorage.Shareds.Utils.AnimationUtil)
 const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 const CombateStateHandler = require(ReplicatedStorage.Shareds.Workers.CombateStateHandler)
 
+
+
 const STATE_READY_ATT_NAME = "Ready"
 const STATE_ATTACK_ENABLED_ATT_NAME = 'AttackEnabled'
 const STATE_ATTACKING_ATT_NAME = 'Attacking'
@@ -69,6 +71,8 @@ const function getMega()
 	return require(ReplicatedStorage.Shareds.Classes.Mega)
 end
 
+-- Hook set by GameplayService (evita ciclo CardsEntityManager ↔ GameplayService no LSP)
+local onTowerDefeated: ((attackerTeam: string, towerSlot: string, loserTeam: string) -> ())?
 
 const function ConsoleLog(message: string)
     return print('[CARD SYSTEM]: ', message)
@@ -82,7 +86,7 @@ function CardsEntityManager._UpdateUnitBillboard(self: CardsEntityManager, props
     assert(props, 'Props not found')
 
     const entityName = `{props.Player.Name}_{props.UID}`
-    const boardjanitor =  GlobalJanitor:get(entityName) or nil
+    
 
     const EntityModel: CardsServiceType.UnitRig = _EntityCache[entityName]
     if not EntityModel or not EntityModel.HumanoidRootPart then 
@@ -137,6 +141,7 @@ function CardsEntityManager._RemoveUnitBillboard(_self: CardsEntityManager, prop
         return
     end
 
+
     const hrp = EntityModel:FindFirstChild("HumanoidRootPart")
     const board = hrp and hrp:FindFirstChild(PATH_BILLBOARD_UNIT)
     if board then
@@ -145,7 +150,7 @@ function CardsEntityManager._RemoveUnitBillboard(_self: CardsEntityManager, prop
 end
 
 function CardsEntityManager._PlayEntityDeathPresentationServer(_self: CardsEntityManager, model: Model, uid: string): number
-	-- << Death anim / VFX (server) — customize aqui >>
+	-- << Death send info for game >>
 
 	return DEATH_DESPAWN_DELAY
 end
@@ -263,18 +268,38 @@ function CardsEntityManager._OnTowerDefeated(_self: CardsEntityManager, model: M
 
 	model:SetAttribute("Destroyed", true)
 
-	const anchor = EntityHelper.GetTowerAnchorForSpawned(model)
+	const anchor: Model? = EntityHelper.GetTowerAnchorForSpawned(model)
 	if anchor then
 		anchor:SetAttribute("Destroyed", true)
 	end
 
+	const attackerTeam: string = PlacementZoneUtils.GetEnemyTeam(team)
+
 	-- Left/Right tower down → attacker gains that lane on the zone
-	if towerSlot ~= "Left" and towerSlot ~= "Right" then
+	if towerSlot == "Left" or towerSlot == "Right" then
+		PlacementZoneUtils.UnlockEnemyLane(attackerTeam, towerSlot)
 		return
 	end
 
-	const attackerTeam = PlacementZoneUtils.GetEnemyTeam(team)
-	PlacementZoneUtils.UnlockEnemyLane(attackerTeam, towerSlot)
+	-- << TODO EndGame: Main (última torre) derrotada → encerrar match >>
+	-- wired via BindOnTowerDefeated (GameplayService) — não require GameplayService aqui
+	if towerSlot == "Main" then
+		print('Jogo foi finalizado')
+		print(('Time vencedor: %s'):format(attackerTeam))
+		if onTowerDefeated then
+			onTowerDefeated(attackerTeam, towerSlot, team)
+		end
+
+
+		return
+	end
+end
+
+function CardsEntityManager.BindOnTowerDefeated(
+	_self: CardsEntityManager,
+	handler: (attackerTeam: string, towerSlot: string, loserTeam: string) -> ()
+)
+	onTowerDefeated = handler
 end
 
 function CardsEntityManager.DespawnEntity(_self: CardsEntityManager, uid: string, model: Model)

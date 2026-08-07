@@ -196,13 +196,13 @@ const function getEnemyMainTowerPosition(teamName: TeamName): Vector3?
 	return nil
 end
 
-const function movePreview(model: Model, worldPos: Vector3, lookTarget: Vector3?)
-	local offsetY = 3
-	local position = worldPos + Vector3.new(0, offsetY, 0)
+const function movePreview(model: Model, worldPos: Vector3, lookTarget: Vector3?): ()
+	local offsetY: number = 3
+	local position: Vector3 = worldPos + Vector3.new(0, offsetY, 0)
 
-	local eixoY = 180
+	local eixoY: number = 180
 	if lookTarget then
-		local delta = lookTarget - worldPos
+		local delta: Vector3 = lookTarget - worldPos
 		eixoY = math.deg(math.atan2(-delta.X, -delta.Z))
 	end
 
@@ -273,33 +273,33 @@ function PreviewModelManager.onBindRaycast(
 		end
 	end, true)
 
-	local params = RaycastParams.new()
+	local params: RaycastParams = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 
 	local excludeList: { Instance } = {
 		Players.LocalPlayer.Character :: Instance,
 		previewModel,
 	}
-	local limitations = PlacementZoneUtils.GetEntityLimitations()
+	local limitations: Instance? = PlacementZoneUtils.GetEntityLimitations()
 	if limitations then
 		table.insert(excludeList, limitations)
 	end
-	local gameFolder = Workspace:FindFirstChild("Game")
-	local entitysFolder = gameFolder and gameFolder:FindFirstChild("_Entitys")
+	local gameFolder: Instance? = Workspace:FindFirstChild("Game")
+	local entitysFolder: Instance? = gameFolder and gameFolder:FindFirstChild("_Entitys")
 	if entitysFolder then
 		table.insert(excludeList, entitysFolder)
 	end
 	params.FilterDescendantsInstances = excludeList
 
-	session:add(RunService.Heartbeat:Connect(function(_deltaTime: number)
+	session:add(RunService.Heartbeat:Connect(function(_deltaTime: number): ()
 		local camera = Workspace.CurrentCamera
 		if not camera then
 			return
 		end
 
-		local mouse = UserInputService:GetMouseLocation()
+		local mouse: Vector2 = UserInputService:GetMouseLocation()
 		local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
-		local result = Workspace:Raycast(ray.Origin, ray.Direction * RAY_DISTANCE, params)
+		local result: RaycastResult<BasePart>? = Workspace:Raycast(ray.Origin, ray.Direction * RAY_DISTANCE, params)
 		if not result then
 			lastCanPlace = false
 			lastPosition = nil
@@ -320,11 +320,11 @@ function PreviewModelManager.onBindRaycast(
 			end
 		end
 
-		local canPlace = PlacementZoneUtils.CanPlace(teamName, result.Position, "Unit")
+		local canPlace: boolean = PlacementZoneUtils.CanPlace(teamName, result.Position, "Unit")
 		lastCanPlace = canPlace
 		previewModel:SetAttribute("CanPlace", canPlace)
 
-		local highlight = previewModel:FindFirstChildWhichIsA("Highlight", true)
+		local highlight: Highlight? = previewModel:FindFirstChildWhichIsA("Highlight", true)
 		if highlight then
 			highlight.FillColor = if canPlace
 				then Color3.fromRGB(255, 255, 255)
@@ -333,17 +333,17 @@ function PreviewModelManager.onBindRaycast(
 	end), "Disconnect")
 
 	return {
-		Cancel = function()
+		Cancel = function(): ()
 			session:destroy()
 			if Track then
 				Track:Stop()
 				Track:Destroy()
 			end
 		end,
-		CanPlace = function()
+		CanPlace = function(): boolean
 			return lastCanPlace
 		end,
-		GetPosition = function()
+		GetPosition = function(): Vector3?
 			return lastPosition
 		end,
 	}

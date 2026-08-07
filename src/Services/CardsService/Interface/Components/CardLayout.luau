@@ -14,6 +14,7 @@ const EntityHelper = require(ReplicatedStorage.Shareds.Workers.EntityHelper)
 const ShineLib = require(script.Parent.Parent.Lib.ShineLib)
 
 
+
 const World = Mega.World
 
 const Card = {}

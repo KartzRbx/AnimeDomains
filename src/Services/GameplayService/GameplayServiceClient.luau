@@ -19,6 +19,8 @@ const GameplayServiceClient = {
 	} :: GameplayTypes.MatchEnergy,
 }
 
+
+
 export type GameplayServiceClient = typeof(GameplayServiceClient)
 
 function GameplayServiceClient.ToVector3(position: GameplayTypes.Vec3Data): Vector3

@@ -1,6 +1,7 @@
 --!strict
--- Behavior: drop on own Main; blocks EntityLimitations + enemy floor (overlay).
--- Overlay: no towers→Main | LeftTower↓→Right | RightTower↓→Left | both↓→Base
+-- Behavior: drop on own Main; blocks EntityLimitations + tower clearance.
+-- Unlocked enemy Left/Right are placeable after that tower falls.
+-- Overlay highlight (Main→Left/Right→Base) is visual only — not a place block.
 
 --[[
 	Teams.<One|Two>.Interactions.EntitySpawnZone
@@ -112,9 +113,9 @@ function PlacementZoneUtils.GetEnemyBlockOverlayId(attackerTeam: TeamName): Over
 	if leftDown and rightDown then
 		return "Base"
 	elseif leftDown then
-		return "Right"
-	elseif rightDown then
 		return "Left"
+	elseif rightDown then
+		return "Right"
 	end
 
 	return "Main"
@@ -261,6 +262,15 @@ function PlacementZoneUtils.IsTooCloseToTower(worldPos: Vector3): boolean
 		end
 
 		for _, tower in towers:GetChildren() do
+			if tower:GetAttribute("Destroyed") == true then
+				continue
+			end
+
+			local grip = tower:FindFirstChild("GripEntity", true)
+			if grip and grip:GetAttribute("Destroyed") == true then
+				continue
+			end
+
 			local anchor = getTowerAnchor(tower)
 			if not anchor then
 				continue
@@ -329,19 +339,18 @@ function PlacementZoneUtils.CanPlace(
 	if PlacementZoneUtils.IsInsideEntityBarrier(worldPos) then
 		return false
 	end
-	if PlacementZoneUtils.IsOnBlockedEnemyFloor(teamName, worldPos) then
-		return false
-	end
 	if PlacementZoneUtils.IsTooCloseToTower(worldPos) then
 		return false
 	end
 
+	-- Own Main is always placeable.
 	for _, zone in PlacementZoneUtils.GetZonesForTeam(teamName) do
 		if PlacementZoneUtils.IsPointInZone(worldPos, zone.Part) then
 			return true
 		end
 	end
 
+	-- Unlocked enemy lanes (LeftTower/RightTower down). Overlay highlight ≠ block.
 	local enemy = PlacementZoneUtils.GetEnemyTeam(teamName)
 
 	if PlacementZoneUtils.IsLaneUnlocked(teamName, "Left") then

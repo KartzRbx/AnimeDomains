@@ -340,7 +340,6 @@ function CardServiceCutscenes.SpawnEntityInPosition(
 
 
 	StarterCutscene()
-	--[__call.Completed:Fire()]
 	return __call
 end
 
